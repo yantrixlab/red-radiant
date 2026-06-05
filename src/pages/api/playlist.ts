@@ -6,14 +6,14 @@ import os from 'os';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { getYtDlp, ffmpegConvert, ffmpegPath, nodeToWebStream, cleanup, jsonRes } from '../../lib/ytdlp.server';
-import { checkAndIncrementDownload, getUserUsage, LimitExceeded } from '../../lib/limits.server';
 
 export const prerender = false;
 
 const _require = createRequire(import.meta.url);
 const { ZipArchive } = _require('archiver') as { ZipArchive: new (opts?: object) => any };
 
-const MAX_TRACKS = 50;
+const MAX_TRACKS_PREMIUM = 50;
+const MAX_TRACKS_FREE    = 25;
 
 export const POST: APIRoute = async ({ request, locals }) => {
   if (!locals.user) return jsonRes({ error: 'login_required' }, 401);
@@ -33,12 +33,15 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const ytDlp = await getYtDlp();
 
     // ── Step 1: get list of video IDs (fast, flat, no download) ───────────────
+    const isPremium = locals.user!.plan === 'premium';
+    const trackLimit = isPremium ? MAX_TRACKS_PREMIUM : MAX_TRACKS_FREE;
+
     console.log('[playlist] Fetching video list…');
     const idsRaw: string = await ytDlp.execPromise([
       url,
       '--flat-playlist',
       '--print', '%(id)s|||%(title)s',
-      `--playlist-end`, String(MAX_TRACKS),
+      '--playlist-end', String(trackLimit),
       '--no-warnings',
       '--quiet',
     ]);
@@ -50,27 +53,11 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     if (!entries.length) throw new Error('No videos found in playlist');
 
-    // ── Limit check: cap to however many downloads the user has left ───────────
-    let tracksToProcess = entries.length;
-    if (locals.user!.plan !== 'premium') {
-      const usage = await getUserUsage(locals.user!.uid);
-      const available = usage.limit - usage.count;
-      if (available <= 0) return jsonRes({ error: 'limit_exceeded', used: usage.count, limit: usage.limit }, 403);
-      tracksToProcess = Math.min(entries.length, available);
-    }
-    const cappedEntries = entries.slice(0, tracksToProcess);
+    const cappedEntries = entries.slice(0, trackLimit);
     console.log(`[playlist] ${cappedEntries.length} videos to process`);
 
     // ── Step 2: download + convert each track ─────────────────────────────────
     const convertedFiles: { file: string; name: string }[] = [];
-
-    // Increment download count for all tracks being processed
-    try {
-      await checkAndIncrementDownload(locals.user!.uid, cappedEntries.length);
-    } catch (e) {
-      if (e instanceof LimitExceeded) return jsonRes({ error: 'limit_exceeded', used: e.used, limit: e.limit }, 403);
-      throw e;
-    }
 
     for (let i = 0; i < cappedEntries.length; i++) {
       const { id, title } = cappedEntries[i];

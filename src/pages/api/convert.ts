@@ -4,8 +4,6 @@ import os from 'os';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { getYtDlp, ffmpegConvert, ffmpegPath, nodeToWebStream, cleanup, extractVideoId, jsonRes } from '../../lib/ytdlp.server';
-import { checkAndIncrementDownload, LimitExceeded } from '../../lib/limits.server';
-
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -18,15 +16,6 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const { url = '', format = 'mp3', quality = '320', title = '' } = body;
   const videoId = extractVideoId(url);
   if (!videoId) return jsonRes({ error: 'Invalid YouTube URL' }, 400);
-
-  try {
-    await checkAndIncrementDownload(locals.user.uid, 1);
-  } catch (e) {
-    if (e instanceof LimitExceeded) {
-      return jsonRes({ error: 'limit_exceeded', used: e.used, limit: e.limit }, 403);
-    }
-    throw e;
-  }
 
   const cleanTitle = (title || videoId).replace(/[^\w\s\-().]/g, '').trim();
   const filename   = `${cleanTitle}.${format}`;
