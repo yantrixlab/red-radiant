@@ -48,14 +48,17 @@ const user = Astro.locals.user;
           </div>
         </div>
       ) : (
-        <>
-          <a href="/login" class="hidden sm:inline-flex items-center h-7 px-3 text-xs font-medium text-body bg-canvas border border-hairline rounded-md hover:text-ink hover:border-hairline-strong transition-colors duration-150">
-            Log in
-          </a>
-          <a href="/signup" class="inline-flex items-center h-7 px-3 text-xs font-medium text-canvas bg-ink rounded-md hover:opacity-85 transition-opacity duration-150">
-            Sign up free
-          </a>
-        </>
+        <a href="/signup" class="upgrade-btn relative inline-flex items-center gap-1.5 h-8 px-4 text-xs font-semibold rounded-full overflow-hidden">
+          <!-- animated gradient background -->
+          <span class="upgrade-bg absolute inset-0 rounded-full"></span>
+          <!-- shimmer sweep -->
+          <span class="upgrade-shimmer absolute inset-0 rounded-full"></span>
+          <!-- crown icon -->
+          <svg class="relative z-10 shrink-0" width="13" height="13" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 10h10M2.5 10L1 5l3.5 2.5L7 2l2.5 5.5L13 5l-1.5 5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="relative z-10 text-white">Upgrade</span>
+        </a>
       )}
       <!-- Mobile hamburger -->
       <button id="mobile-menu-btn" class="md:hidden flex items-center justify-center w-8 h-8 rounded-md text-body hover:text-ink hover:bg-canvas-soft-2 transition-colors" aria-label="Open menu" aria-expanded="false">
@@ -82,14 +85,45 @@ const user = Astro.locals.user;
           <button id="logout-btn-mobile" class="text-left text-body text-sm px-3 py-2 rounded-md hover:bg-canvas-soft-2 transition-colors">Sign out</button>
         </>
       ) : (
-        <>
-          <a href="/login" class="text-body text-sm px-3 py-2 rounded-md hover:bg-canvas-soft-2 transition-colors">Log in</a>
-          <a href="/signup" class="text-body text-sm px-3 py-2 rounded-md hover:bg-canvas-soft-2 transition-colors">Sign up free</a>
-        </>
+        <a href="/signup" class="upgrade-btn relative inline-flex items-center gap-2 h-9 px-5 text-sm font-semibold rounded-full overflow-hidden w-fit">
+          <span class="upgrade-bg absolute inset-0 rounded-full"></span>
+          <span class="upgrade-shimmer absolute inset-0 rounded-full"></span>
+          <svg class="relative z-10 shrink-0" width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <path d="M2 10h10M2.5 10L1 5l3.5 2.5L7 2l2.5 5.5L13 5l-1.5 5" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="relative z-10 text-white">Upgrade</span>
+        </a>
       )}
     </nav>
   </div>
 </header>
+
+<style>
+  .upgrade-bg {
+    background: linear-gradient(135deg, #7928ca 0%, #ff0080 50%, #007cf0 100%);
+    background-size: 200% 200%;
+    animation: gradientShift 3s ease infinite;
+  }
+  .upgrade-shimmer {
+    background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.25) 50%, transparent 60%);
+    background-size: 200% 100%;
+    animation: shimmerSweep 2.4s ease infinite;
+  }
+  .upgrade-btn:hover .upgrade-bg {
+    animation-duration: 1.2s;
+    filter: brightness(1.1);
+  }
+  @keyframes gradientShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  @keyframes shimmerSweep {
+    0%   { background-position: -100% 0; }
+    60%  { background-position: 200% 0; }
+    100% { background-position: 200% 0; }
+  }
+</style>
 
 <script>
   // Mobile menu toggle
