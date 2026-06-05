@@ -1,11 +1,11 @@
-[variables]
-NODE_ENV = "production"
+[phases.setup]
+nixPkgs = ["nodejs_22", "python3"]
 
 [phases.install]
-cmds = ["pnpm i --frozen-lockfile"]
+cmds = ["npm install"]
 
 [phases.build]
-cmds = ["pnpm turbo build --filter=@yantrix/web --concurrency=1"]
+cmds = ["npm run build"]
 
 [start]
-cmd = "sh -lc 'node apps/web/.next/standalone/server.js || node apps/web/.next/standalone/apps/web/server.js'"
+cmd = "node ./dist/server/entry.mjs"
