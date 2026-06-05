@@ -6,8 +6,7 @@ import { randomUUID } from 'crypto';
 import { getYtDlp, ffmpegConvert, ffmpegPath, nodeToWebStream, cleanup, extractVideoId, jsonRes } from '../../lib/ytdlp.server';
 export const prerender = false;
 
-export const POST: APIRoute = async ({ request, locals }) => {
-  if (!locals.user) return jsonRes({ error: 'login_required' }, 401);
+export const POST: APIRoute = async ({ request, locals: _locals }) => {
 
   let body: { url?: string; format?: string; quality?: string; title?: string };
   try { body = await request.json(); }
