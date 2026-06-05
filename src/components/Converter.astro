@@ -712,6 +712,7 @@ function setBtnLoading(loading: boolean) {
           code === 'private'        ? 'This video is private.'
           : code === 'age_restricted' ? 'Age-restricted videos cannot be converted.'
           : code === 'not_found'    ? 'Video not found.'
+          : errBody?.debug         ? `Error: ${errBody.debug.split('\n')[0]}`
           : `Server error ${apiRes.status}`,
         );
       }

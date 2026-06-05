@@ -66,6 +66,19 @@ export async function getYtDlp() {
   return _instance as any;
 }
 
+// Write cookies to a temp file once and reuse
+let _cookiePath: string | null = null;
+export function getCookieArgs(): string[] {
+  const b64 = process.env.YT_COOKIES_B64 ?? '';
+  if (!b64) return [];
+  if (!_cookiePath) {
+    _cookiePath = path.join(os.tmpdir(), 'yt_cookies.txt');
+    fs.writeFileSync(_cookiePath, Buffer.from(b64, 'base64').toString('utf-8'));
+    console.log('[yt-dlp] Cookies loaded from YT_COOKIES_B64');
+  }
+  return ['--cookies', _cookiePath];
+}
+
 export function ffmpegConvert(input: string, output: string, format: string, quality: string): Promise<void> {
   return new Promise((resolve, reject) => {
     let cmd = Ffmpeg(input);

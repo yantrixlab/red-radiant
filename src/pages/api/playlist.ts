@@ -5,7 +5,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { getYtDlp, ffmpegConvert, ffmpegPath, nodeToWebStream, cleanup, jsonRes } from '../../lib/ytdlp.server';
+import { getYtDlp, getCookieArgs, ffmpegConvert, ffmpegPath, nodeToWebStream, cleanup, jsonRes } from '../../lib/ytdlp.server';
 
 export const prerender = false;
 
@@ -44,8 +44,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       '--playlist-end', String(trackLimit),
       '--no-warnings',
       '--quiet',
-      '--extractor-args', 'youtube:player_client=ios,web',
-      '--user-agent', 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)',
+      ...getCookieArgs(),
     ]);
 
     const entries = idsRaw.trim().split('\n').filter(Boolean).map(line => {
@@ -76,8 +75,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
           '--ffmpeg-location', path.dirname(ffmpegPath),
           '-o', inputTpl,
           '--no-warnings',
-          '--extractor-args', 'youtube:player_client=ios,web',
-          '--user-agent', 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)',
+          ...getCookieArgs(),
         ]);
 
         const inputFile = fs.readdirSync(tmpDir)

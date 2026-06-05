@@ -3,7 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { getYtDlp, ffmpegConvert, ffmpegPath, nodeToWebStream, cleanup, extractVideoId, jsonRes } from '../../lib/ytdlp.server';
+import { getYtDlp, getCookieArgs, ffmpegConvert, ffmpegPath, nodeToWebStream, cleanup, extractVideoId, jsonRes } from '../../lib/ytdlp.server';
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request, locals: _locals }) => {
@@ -34,8 +34,7 @@ export const POST: APIRoute = async ({ request, locals: _locals }) => {
       '--ffmpeg-location', path.dirname(ffmpegPath),
       '-o', inputTpl,
       '--no-warnings',
-      '--extractor-args', 'youtube:player_client=ios,web',
-      '--user-agent', 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)',
+      ...getCookieArgs(),
     ]);
 
     const inputFile = fs.readdirSync(tmpDir)
@@ -77,10 +76,12 @@ export const POST: APIRoute = async ({ request, locals: _locals }) => {
     console.error('[convert error]', e?.message ?? e);
     const msg: string = (e?.message ?? '').toLowerCase();
     return jsonRes({
-      error: msg.includes('private')     ? 'private'
-           : msg.includes('age')         ? 'age_restricted'
-           : msg.includes('not found')   ? 'not_found'
-           : msg.includes('unavailable') ? 'unavailable'
+      error: msg.includes('private')        ? 'private'
+           : msg.includes('age-restrict')   ? 'age_restricted'
+           : msg.includes('age restricted') ? 'age_restricted'
+           : msg.includes('confirm your age') ? 'age_restricted'
+           : msg.includes('not found')      ? 'not_found'
+           : msg.includes('unavailable')    ? 'unavailable'
            : 'conversion_failed',
       debug: e?.message ?? String(e),
     }, 500);
