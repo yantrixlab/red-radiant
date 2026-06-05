@@ -34,12 +34,18 @@ function downloadFile(url: string, dest: string): Promise<void> {
 async function bootstrap() {
   console.log('[yt-dlp] BIN_PATH:', BIN_PATH);
   console.log('[yt-dlp] tmpdir:', os.tmpdir());
+  // Remove old wrongly-named binary if it exists
+  const oldBin = path.join(BIN_DIR, 'yt-dlp');
+  if (process.platform !== 'win32' && process.platform !== 'darwin' && fs.existsSync(oldBin) && BIN_PATH !== oldBin) {
+    fs.unlinkSync(oldBin);
+    console.log('[yt-dlp] Removed old binary, will re-download correct standalone…');
+  }
   if (!fs.existsSync(BIN_PATH)) {
     fs.mkdirSync(BIN_DIR, { recursive: true });
     console.log('[yt-dlp] Downloading binary…');
     const name = process.platform === 'win32' ? 'yt-dlp.exe'
                : process.platform === 'darwin' ? 'yt-dlp_macos'
-               : 'yt-dlp';
+               : 'yt-dlp_linux';  // standalone PyInstaller binary — no Python required
     await downloadFile(
       `https://github.com/yt-dlp/yt-dlp/releases/latest/download/${name}`,
       BIN_PATH,
