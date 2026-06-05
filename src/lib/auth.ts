@@ -34,12 +34,12 @@ export const auth = betterAuth({
 
   user: {
     additionalFields: {
-      plan:                   { type: 'string',  defaultValue: 'free',  fieldName: 'plan' },
-      isAdmin:                { type: 'boolean', defaultValue: false,   fieldName: 'is_admin' },
-      downloadCount:          { type: 'number',  defaultValue: 0,       fieldName: 'download_count' },
-      downloadCountResetAt:   { type: 'date',    required: false,       fieldName: 'download_count_reset_at' },
-      razorpaySubscriptionId: { type: 'string',  required: false,       fieldName: 'razorpay_subscription_id' },
-      subscriptionStatus:     { type: 'string',  required: false,       fieldName: 'subscription_status' },
+      plan:                   { type: 'string',  defaultValue: 'free' },
+      isAdmin:                { type: 'boolean', defaultValue: false },
+      downloadCount:          { type: 'number',  defaultValue: 0 },
+      downloadCountResetAt:   { type: 'date',    required: false },
+      razorpaySubscriptionId: { type: 'string',  required: false },
+      subscriptionStatus:     { type: 'string',  required: false },
     },
   },
 

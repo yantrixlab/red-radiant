@@ -47,6 +47,20 @@ export const GET: APIRoute = async ({ url }) => {
     results.betterAuthError = e.message;
   }
 
+  // Test Better Auth createUser directly
+  try {
+    const { auth } = await import('../../lib/auth');
+    const ctx = await (auth as any).api.signUpEmail({
+      body: { name: 'Debug', email: `debug-${Date.now()}@test.com`, password: 'TestPass123!' },
+    });
+    results.betterAuthSignup = 'OK';
+  } catch (e: any) {
+    results.betterAuthSignup = 'FAILED';
+    results.betterAuthSignupError = e?.message ?? String(e);
+    results.betterAuthSignupStack = e?.stack?.split('\n').slice(0, 5).join(' | ');
+    results.betterAuthSignupCause = e?.cause ? String(e.cause) : undefined;
+  }
+
   // Test direct user insert via Drizzle
   try {
     const { drizzle } = await import('drizzle-orm/postgres-js');
