@@ -1,0 +1,40 @@
+---
+import Layout from '../../layouts/Layout.astro';
+const cookie = Astro.cookies.get('admin_session');
+if (cookie?.value === 'authenticated') return Astro.redirect('/admin');
+const error = Astro.url.searchParams.get('error');
+---
+
+<Layout title="Admin Login — youtube2mp3file.com">
+  <main class="min-h-screen flex items-center justify-center px-4">
+    <div class="w-full max-w-sm">
+      <div class="text-center mb-8">
+        <h1 class="text-2xl font-semibold text-ink">Admin Login</h1>
+        <p class="text-sm text-muted mt-1">Restricted access</p>
+      </div>
+
+      <div class="bg-canvas rounded-xl border border-hairline shadow-sm p-6">
+        <form method="POST" action="/api/admin/login" class="space-y-4">
+          {error && (
+            <p class="text-xs text-red-500 text-center">Invalid email or password</p>
+          )}
+          <div>
+            <label class="block text-xs font-medium text-ink mb-1" for="email">Email</label>
+            <input id="email" name="email" type="email" required autocomplete="email"
+              class="w-full h-10 px-3 text-sm text-ink bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-hairline-strong focus:ring-2 focus:ring-ink/5 transition-all"
+              placeholder="admin@example.com" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-ink mb-1" for="password">Password</label>
+            <input id="password" name="password" type="password" required autocomplete="current-password"
+              class="w-full h-10 px-3 text-sm text-ink bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-hairline-strong focus:ring-2 focus:ring-ink/5 transition-all" />
+          </div>
+          <button type="submit"
+            class="w-full h-10 text-sm font-medium text-canvas bg-ink rounded-lg hover:opacity-85 transition-opacity">
+            Sign in
+          </button>
+        </form>
+      </div>
+    </div>
+  </main>
+</Layout>

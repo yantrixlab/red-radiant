@@ -1,7 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import Nav from '../../components/Nav.astro';
-if (!Astro.locals.user?.isAdmin) return Astro.redirect('/');
+const adminCookie = Astro.cookies.get('admin_session');
+if (adminCookie?.value !== 'authenticated') return Astro.redirect('/admin/login');
 ---
 
 <Layout title="Admin Panel — youtube2mp3file.com">
