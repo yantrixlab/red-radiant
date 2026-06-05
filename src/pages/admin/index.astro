@@ -1,0 +1,185 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Nav from '../../components/Nav.astro';
+if (!Astro.locals.user?.isAdmin) return Astro.redirect('/');
+---
+
+<Layout title="Admin Panel — youtube2mp3file.com">
+  <Nav />
+  <main class="min-h-screen px-4 pt-28 pb-16">
+    <div class="max-w-4xl mx-auto space-y-8">
+
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-semibold text-ink">Admin Panel</h1>
+        <span class="inline-flex items-center h-6 px-2 text-xs font-semibold bg-ink text-canvas rounded-full">Admin</span>
+      </div>
+
+      <!-- Settings -->
+      <section class="bg-canvas rounded-xl border border-hairline shadow-sm p-6">
+        <h2 class="text-sm font-semibold text-ink mb-5">Download Limits & Settings</h2>
+        <form id="settings-form" class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-ink mb-1" for="freeLimit">Free download limit</label>
+              <input id="freeLimit" type="number" min="1" max="10000"
+                class="w-full h-10 px-3 text-sm text-ink bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-hairline-strong transition-all"
+                placeholder="25" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink mb-1" for="limitWindow">Limit window</label>
+              <select id="limitWindow"
+                class="w-full h-10 px-3 text-sm text-ink bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-hairline-strong transition-all">
+                <option value="daily">Daily (resets every 24h)</option>
+                <option value="monthly">Monthly (resets 1st of month)</option>
+                <option value="lifetime">Lifetime (never resets)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink mb-1" for="premiumPrice">Premium price display</label>
+              <input id="premiumPrice" type="text"
+                class="w-full h-10 px-3 text-sm text-ink bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-hairline-strong transition-all"
+                placeholder="₹199/month" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-ink mb-1" for="rzpPlanId">Razorpay Plan ID</label>
+              <input id="rzpPlanId" type="text"
+                class="w-full h-10 px-3 text-sm text-ink bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-hairline-strong transition-all font-mono text-xs"
+                placeholder="plan_xxxxxxxxxxxxxxxx" />
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input id="maintenance" type="checkbox" class="sr-only peer" />
+              <div class="w-9 h-5 bg-canvas-soft-2 peer-focus:ring-2 peer-focus:ring-ink/20 rounded-full peer peer-checked:bg-ink after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+            </label>
+            <span class="text-sm text-ink">Maintenance mode <span class="text-xs text-muted">(disables all downloads)</span></span>
+          </div>
+          <div class="flex items-center gap-3">
+            <button type="submit" id="save-btn"
+              class="h-9 px-5 text-sm font-medium text-canvas bg-ink rounded-lg hover:opacity-85 transition-opacity disabled:opacity-40">
+              Save settings
+            </button>
+            <p id="save-status" class="text-xs text-muted"></p>
+          </div>
+        </form>
+      </section>
+
+      <!-- Users -->
+      <section class="bg-canvas rounded-xl border border-hairline shadow-sm overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-hairline">
+          <h2 class="text-sm font-semibold text-ink">Users</h2>
+          <p id="user-count" class="text-xs text-muted"></p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-hairline bg-canvas-soft-2/50">
+                <th class="text-left px-6 py-3 text-xs font-medium text-muted">Email</th>
+                <th class="text-left px-4 py-3 text-xs font-medium text-muted">Plan</th>
+                <th class="text-left px-4 py-3 text-xs font-medium text-muted">Downloads</th>
+                <th class="text-left px-4 py-3 text-xs font-medium text-muted">Joined</th>
+                <th class="px-4 py-3 text-xs font-medium text-muted"></th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="5" class="px-6 py-8 text-center text-xs text-muted">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</Layout>
+
+<script>
+// ─── Load settings ──────────────────────────────────────────────────────────
+async function loadSettings() {
+  const res  = await fetch('/api/admin/settings');
+  const data = await res.json();
+  (document.getElementById('freeLimit') as HTMLInputElement).value       = String(data.freeDownloadLimit ?? 25);
+  (document.getElementById('limitWindow') as HTMLSelectElement).value    = data.limitWindow ?? 'monthly';
+  (document.getElementById('premiumPrice') as HTMLInputElement).value    = data.premiumPriceDisplay ?? '';
+  (document.getElementById('rzpPlanId') as HTMLInputElement).value       = data.razorpayPlanId ?? '';
+  (document.getElementById('maintenance') as HTMLInputElement).checked   = !!data.maintenanceMode;
+}
+loadSettings();
+
+// ─── Save settings ──────────────────────────────────────────────────────────
+document.getElementById('settings-form')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn    = document.getElementById('save-btn') as HTMLButtonElement;
+  const status = document.getElementById('save-status')!;
+  btn.disabled = true;
+  status.textContent = 'Saving…';
+
+  await fetch('/api/admin/settings', {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      freeDownloadLimit:   parseInt((document.getElementById('freeLimit') as HTMLInputElement).value),
+      limitWindow:         (document.getElementById('limitWindow') as HTMLSelectElement).value,
+      premiumPriceDisplay: (document.getElementById('premiumPrice') as HTMLInputElement).value,
+      razorpayPlanId:      (document.getElementById('rzpPlanId') as HTMLInputElement).value,
+      maintenanceMode:     (document.getElementById('maintenance') as HTMLInputElement).checked,
+    }),
+  });
+
+  btn.disabled = false;
+  status.textContent = '✓ Saved';
+  setTimeout(() => { status.textContent = ''; }, 3000);
+});
+
+// ─── Load users ─────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const res  = await fetch('/api/admin/users?limit=100');
+  const data = await res.json();
+  const tbody = document.getElementById('users-tbody')!;
+  const users: any[] = data.users ?? [];
+
+  document.getElementById('user-count')!.textContent = `${users.length} users`;
+
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-xs text-muted">No users yet</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = users.map(u => `
+    <tr class="border-b border-hairline hover:bg-canvas-soft-2/50 transition-colors" data-uid="${u.uid}">
+      <td class="px-6 py-3 text-sm text-ink">${u.email}${u.isAdmin ? ' <span class="text-xs text-muted">(admin)</span>' : ''}</td>
+      <td class="px-4 py-3">
+        <span class="inline-flex items-center h-5 px-2 text-xs font-medium rounded-full ${u.plan === 'premium' ? 'bg-amber-100 text-amber-700' : 'bg-canvas-soft-2 text-muted'}">
+          ${u.plan}
+        </span>
+      </td>
+      <td class="px-4 py-3 text-sm text-muted">${u.downloadCount}</td>
+      <td class="px-4 py-3 text-xs text-muted">${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
+      <td class="px-4 py-3 text-right">
+        <button
+          class="toggle-plan-btn text-xs text-muted hover:text-ink underline underline-offset-2 transition-colors"
+          data-uid="${u.uid}"
+          data-plan="${u.plan}"
+        >
+          ${u.plan === 'premium' ? 'Revoke premium' : 'Grant premium'}
+        </button>
+      </td>
+    </tr>
+  `).join('');
+
+  // Toggle plan buttons
+  tbody.querySelectorAll<HTMLButtonElement>('.toggle-plan-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const uid     = btn.dataset.uid!;
+      const newPlan = btn.dataset.plan === 'premium' ? 'free' : 'premium';
+      btn.disabled  = true;
+      await fetch('/api/admin/users', {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ uid, plan: newPlan }),
+      });
+      loadUsers(); // refresh
+    });
+  });
+}
+loadUsers();
+</script>

@@ -1,0 +1,93 @@
+---
+const formats = [
+  {
+    name: 'MP3',
+    ext: '.mp3',
+    tag: 'Most popular',
+    description: 'Universal compatibility. Plays on every device, app, and platform. The default choice for music, podcasts, and voice recordings.',
+    qualities: ['128 kbps', '192 kbps', '256 kbps', '320 kbps'],
+    highlighted: true,
+    pros: ['Smallest file size', 'Works everywhere', 'Perfect for streaming'],
+  },
+  {
+    name: 'WAV',
+    ext: '.wav',
+    tag: 'Lossless',
+    description: 'Uncompressed audio. Full fidelity, larger file size. Used by music producers, DJs, and anyone who needs studio-grade audio.',
+    qualities: ['Lossless'],
+    highlighted: false,
+    pros: ['Zero quality loss', 'Pro studio standard', 'Best for editing'],
+  },
+  {
+    name: 'M4A',
+    ext: '.m4a',
+    tag: 'Apple optimised',
+    description: 'Superior quality at smaller file sizes than MP3. The native Apple audio format — preferred on iPhone, Mac, and in iTunes.',
+    qualities: ['High quality'],
+    highlighted: false,
+    pros: ['Great quality/size', 'Native on Apple', 'Better than MP3 at same bitrate'],
+  },
+];
+---
+
+<section id="formats" class="py-24 bg-canvas border-t border-hairline">
+  <div class="max-w-6xl mx-auto px-6">
+
+    <div class="text-center mb-16">
+      <p class="text-xs font-mono text-muted uppercase tracking-widest mb-3">Supported formats</p>
+      <h2 class="text-3xl font-semibold text-ink tracking-tight">Every format you need, nothing you don't.</h2>
+      <p class="text-base text-body mt-3 max-w-md mx-auto">Choose the format that fits your workflow — or just use MP3 if you're unsure.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {formats.map((f) => (
+        <div class={`rounded-xl p-6 border flex flex-col ${f.highlighted ? 'bg-ink text-canvas border-ink' : 'bg-canvas border-hairline'} shadow-[0px_2px_2px_#0000000a,0px_8px_16px_-4px_#0000000a,inset_0_0_0_1px_rgba(0,0,0,0.08)]`}>
+          <div class="flex items-start justify-between mb-5">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class={`text-2xl font-semibold tracking-tight ${f.highlighted ? 'text-canvas' : 'text-ink'}`}>{f.name}</span>
+                <span class={`text-xs font-mono px-2 py-0.5 rounded-full ${f.highlighted ? 'bg-canvas/15 text-canvas/80' : 'bg-canvas-soft-2 text-muted'}`}>
+                  {f.ext}
+                </span>
+              </div>
+              <span class={`text-xs px-2 py-0.5 rounded-full border ${f.highlighted ? 'border-canvas/20 text-canvas/70' : 'border-hairline text-muted'}`}>
+                {f.tag}
+              </span>
+            </div>
+          </div>
+
+          <p class={`text-sm leading-relaxed mb-5 flex-1 ${f.highlighted ? 'text-canvas/80' : 'text-body'}`}>{f.description}</p>
+
+          <!-- Quality options -->
+          <div class="mb-5">
+            <p class={`text-xs font-mono uppercase tracking-widest mb-2 ${f.highlighted ? 'text-canvas/50' : 'text-muted'}`}>Quality</p>
+            <div class="flex flex-wrap gap-1.5">
+              {f.qualities.map((q, i) => (
+                <span class={`text-xs px-2.5 py-1 rounded-full border ${
+                  f.highlighted
+                    ? (i === f.qualities.length - 1 ? 'bg-canvas text-ink border-canvas' : 'border-canvas/20 text-canvas/70')
+                    : (i === f.qualities.length - 1 ? 'bg-ink text-canvas border-ink' : 'border-hairline text-body')
+                }`}>
+                  {q}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <!-- Pros -->
+          <ul class="space-y-1.5">
+            {f.pros.map(pro => (
+              <li class="flex items-center gap-2">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class={f.highlighted ? 'text-canvas/60' : 'text-success'}>
+                  <path d="M2 6.5l2.5 2.5 5.5-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class={`text-xs ${f.highlighted ? 'text-canvas/70' : 'text-body'}`}>{pro}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+
+  </div>
+</section>

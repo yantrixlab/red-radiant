@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "src/pages/api/playlist.ts": {
+      "maxDuration": 300
+    }
+  }
+}

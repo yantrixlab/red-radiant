@@ -1,0 +1,66 @@
+---
+const steps = [
+  {
+    number: '01',
+    title: 'Paste your link',
+    description: 'Copy any YouTube URL — a video, playlist, or Short — and paste it into the converter box above.',
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="5" width="11" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M7 5V4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    number: '02',
+    title: 'Choose format & quality',
+    description: 'Select MP3, WAV, or M4A. For MP3, pick your quality from 128 kbps up to 320 kbps HD audio.',
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 10h12M4 5h12M4 15h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>`,
+  },
+  {
+    number: '03',
+    title: 'Download instantly',
+    description: 'Hit Convert and your file is ready in seconds. No email, no account, no waiting in queues.',
+    icon: `<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 3v9M6.5 9l3.5 3.5L13.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M3 15h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>`,
+  },
+];
+---
+
+<section id="how-it-works" class="py-24 bg-canvas border-t border-hairline">
+  <div class="max-w-6xl mx-auto px-6">
+
+    <div class="text-center mb-16">
+      <p class="text-xs font-mono text-muted uppercase tracking-widest mb-3">How it works</p>
+      <h2 class="text-3xl font-semibold text-ink tracking-tight">Three steps to your audio file.</h2>
+      <p class="text-base text-body mt-3 max-w-md mx-auto">No installs, no sign-up. Works on every device with a browser.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+      <!-- Connector lines (desktop only) -->
+      <div class="hidden md:block absolute top-10 left-[calc(33.33%+16px)] right-[calc(33.33%+16px)] h-px bg-hairline pointer-events-none"></div>
+
+      {steps.map((step, i) => (
+        <div class="relative">
+          <div class="flex items-start gap-4 md:flex-col md:gap-0">
+            <div class="relative shrink-0 md:mb-6">
+              <div class="w-10 h-10 rounded-full bg-canvas-soft-2 border border-hairline flex items-center justify-center text-ink">
+                <Fragment set:html={step.icon} />
+              </div>
+            </div>
+            <div class="md:mt-0">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-xs font-mono text-muted">{step.number}</span>
+                <h3 class="text-base font-semibold text-ink">{step.title}</h3>
+              </div>
+              <p class="text-sm text-body leading-relaxed">{step.description}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+
+  </div>
+</section>

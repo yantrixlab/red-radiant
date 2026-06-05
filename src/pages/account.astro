@@ -1,0 +1,130 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Nav from '../components/Nav.astro';
+if (!Astro.locals.user) return Astro.redirect('/login?redirect=/account');
+const user = Astro.locals.user;
+---
+
+<Layout title="My Account — youtube2mp3file.com">
+  <Nav />
+  <main class="min-h-screen px-4 pt-28 pb-16">
+    <div class="max-w-lg mx-auto space-y-6">
+
+      <h1 class="text-2xl font-semibold text-ink">My Account</h1>
+
+      <!-- Plan card -->
+      <div class="bg-canvas rounded-xl border border-hairline shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <p class="text-xs font-medium text-muted uppercase tracking-widest">Current Plan</p>
+            <div class="flex items-center gap-2 mt-1">
+              <p class="text-lg font-semibold text-ink" id="plan-label">
+                {user.plan === 'premium' ? 'Premium' : 'Free'}
+              </p>
+              {user.plan === 'premium' && (
+                <span class="inline-flex items-center h-5 px-2 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full">PRO</span>
+              )}
+            </div>
+          </div>
+          {user.plan !== 'premium' && (
+            <button id="upgrade-btn"
+              class="inline-flex items-center h-9 px-4 text-sm font-medium text-canvas bg-ink rounded-lg hover:opacity-85 transition-opacity">
+              Upgrade to Premium
+            </button>
+          )}
+        </div>
+
+        <!-- Usage meter (free users) -->
+        {user.plan !== 'premium' && (
+          <div id="usage-section">
+            <div class="flex items-center justify-between mb-1.5">
+              <p class="text-xs text-muted">Downloads used</p>
+              <p class="text-xs font-medium text-ink" id="usage-label">Loading…</p>
+            </div>
+            <div class="h-2 bg-canvas-soft-2 rounded-full overflow-hidden">
+              <div id="usage-bar" class="h-full bg-ink rounded-full transition-all duration-500" style="width:0%"></div>
+            </div>
+            <p class="text-xs text-muted mt-1" id="usage-reset"></p>
+          </div>
+        )}
+
+        {user.plan === 'premium' && (
+          <p class="text-sm text-muted">Unlimited downloads · All formats · 320 kbps</p>
+        )}
+      </div>
+
+      <!-- Account info -->
+      <div class="bg-canvas rounded-xl border border-hairline shadow-sm p-6">
+        <p class="text-xs font-medium text-muted uppercase tracking-widest mb-3">Account</p>
+        <p class="text-sm text-ink">{user.email}</p>
+        <button id="signout-btn" class="mt-4 text-sm text-muted hover:text-ink underline underline-offset-2 transition-colors">
+          Sign out
+        </button>
+      </div>
+
+    </div>
+  </main>
+</Layout>
+
+<script define:vars={{ razorpayKey: import.meta.env.PUBLIC_RAZORPAY_KEY_ID ?? '' }}>
+// Load usage
+async function loadUsage() {
+  const res = await fetch('/api/me');
+  const { user } = await res.json();
+  if (!user || user.plan === 'premium') return;
+
+  const pct   = Math.min(100, Math.round((user.count / user.limit) * 100));
+  const label = document.getElementById('usage-label');
+  const bar   = document.getElementById('usage-bar');
+  const reset = document.getElementById('usage-reset');
+
+  if (label) label.textContent = `${user.count} / ${user.limit}`;
+  if (bar)   bar.style.width   = `${pct}%`;
+  if (bar)   bar.className     = bar.className.replace('bg-ink', pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-500' : 'bg-ink');
+  if (reset) reset.textContent = user.window === 'lifetime' ? 'Lifetime limit' : `Resets every ${user.window}`;
+}
+loadUsage();
+
+// Upgrade via Razorpay
+document.getElementById('upgrade-btn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('upgrade-btn') as HTMLButtonElement;
+  btn.disabled    = true;
+  btn.textContent = 'Loading…';
+
+  const res  = await fetch('/api/payment/create-subscription', { method: 'POST' });
+  const data = await res.json();
+
+  if (!data.subscription_id) {
+    btn.disabled    = false;
+    btn.textContent = 'Upgrade to Premium';
+    alert(data.error ?? 'Could not start checkout');
+    return;
+  }
+
+  // Load Razorpay script dynamically
+  const script = document.createElement('script');
+  script.src   = 'https://checkout.razorpay.com/v1/checkout.js';
+  document.head.appendChild(script);
+  script.onload = () => {
+    const rzp = new (window as any).Razorpay({
+      key:             razorpayKey,
+      subscription_id: data.subscription_id,
+      name:            'youtube2mp3file Premium',
+      description:     'Unlimited downloads',
+      handler:         () => { window.location.reload(); },
+      prefill:         { email: document.querySelector<HTMLParagraphElement>('.text-sm.text-ink')?.textContent ?? '' },
+      theme:           { color: '#171717' },
+    });
+    rzp.open();
+    btn.disabled    = false;
+    btn.textContent = 'Upgrade to Premium';
+  };
+});
+
+// Sign out
+document.getElementById('signout-btn')?.addEventListener('click', async () => {
+  const { authClient } = await import('../lib/auth-client');
+  await authClient.signOut();
+  window.location.href = '/';
+});
+</script>

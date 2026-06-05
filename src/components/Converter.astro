@@ -1,0 +1,824 @@
+---
+const user = Astro.locals.user;
+const isLoggedIn = !!user;
+const isPremium  = user?.plan === 'premium';
+---
+
+<section id="converter" class="relative w-full max-w-2xl mx-auto">
+
+  <!-- Converter card -->
+  <div
+    id="converter-card"
+    class="bg-canvas rounded-xl border border-hairline shadow-[0px_2px_2px_#0000000a,0px_8px_16px_-4px_#0000000a,inset_0_0_0_1px_#00000014] overflow-hidden"
+  >
+    <!-- Input row -->
+    <div id="input-state" class="p-4">
+      <div class="flex gap-2">
+        <div class="relative flex-1">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M6.4 2C4 2 2 4 2 6.4s2 4.4 4.4 4.4c1 0 2-.3 2.8-.9l3.4 3.4c.3.3.7.3 1 0 .3-.3.3-.7 0-1L10.2 9c.6-.8.9-1.8.9-2.8C11.2 3.9 9 2 6.4 2zm0 1.4c1.7 0 3 1.3 3 3s-1.3 3-3 3-3-1.3-3-3 1.3-3 3-3z" fill="currentColor"/>
+            </svg>
+          </span>
+          <input
+            id="url-input"
+            type="text"
+            placeholder="Paste YouTube URL — video, playlist, or Short..."
+            autocomplete="off"
+            autocorrect="off"
+            spellcheck="false"
+            class="w-full h-11 pl-9 pr-4 text-sm text-ink bg-canvas border border-hairline rounded-lg placeholder:text-muted focus:outline-none focus:border-hairline-strong focus:ring-2 focus:ring-ink/5 transition-all"
+            aria-label="YouTube URL input"
+          />
+        </div>
+        <button
+          id="convert-btn"
+          class="inline-flex items-center gap-2 h-11 px-5 text-sm font-medium text-canvas bg-ink rounded-lg hover:opacity-85 active:opacity-75 transition-opacity whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <svg id="btn-icon-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 1v8M3.5 6l3.5 3.5L10.5 6M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg id="btn-icon-spinner" class="hidden animate-spin" width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="20 15" stroke-linecap="round"/>
+          </svg>
+          <span id="btn-label">Convert</span>
+        </button>
+      </div>
+      <p class="mt-2 text-xs text-muted pl-1">
+        Supports youtube.com/watch, youtu.be, /shorts, /playlist — any public video
+      </p>
+    </div>
+
+    <!-- Video preview (hidden by default) -->
+    <div id="preview-state" class="hidden">
+      <div class="flex gap-4 p-4 border-t border-hairline">
+        <div class="shrink-0 w-24 h-[54px] rounded-md overflow-hidden bg-canvas-soft-2">
+          <img id="video-thumb" src="" alt="" class="w-full h-full object-cover" loading="lazy" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <p id="video-title" class="text-sm font-medium text-ink truncate leading-tight"></p>
+          <p id="video-meta" class="text-xs text-muted mt-0.5"></p>
+        </div>
+        <button id="clear-btn" class="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-muted hover:text-ink hover:bg-canvas-soft-2 transition-colors" aria-label="Clear">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+            <path d="M9.5 2.5L2.5 9.5M2.5 2.5L9.5 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Format & quality -->
+      <div class="px-4 pb-4 space-y-3">
+        <!-- Format tabs -->
+        <div>
+          <p class="text-xs font-medium text-muted uppercase tracking-widest font-mono mb-2">Format</p>
+          <div class="flex gap-1.5 flex-wrap">
+            {['MP3', 'WAV', 'M4A'].map(fmt => (
+              <button
+                data-format={fmt.toLowerCase()}
+                class="format-tab h-8 px-4 text-sm font-medium rounded-[64px] border border-hairline text-body bg-canvas hover:text-ink hover:border-hairline-strong transition-colors"
+              >
+                {fmt}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <!-- Quality tabs (shown for MP3 only) -->
+        <div id="quality-section">
+          <p class="text-xs font-medium text-muted uppercase tracking-widest font-mono mb-2">Quality</p>
+          <div class="flex gap-1.5 flex-wrap">
+            {['128 kbps', '192 kbps', '256 kbps', '320 kbps'].map((q, i) => (
+              <button
+                data-quality={q.replace(' kbps', '')}
+                class={`quality-tab h-8 px-4 text-sm font-medium rounded-[64px] border border-hairline text-body bg-canvas hover:text-ink hover:border-hairline-strong transition-colors ${i === 3 ? 'tab-active' : ''}`}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+          <p class="text-xs text-muted mt-1.5">320 kbps is the highest MP3 quality</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress bar (hidden by default) -->
+    <div id="progress-state" class="hidden border-t border-hairline p-4">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-sm font-medium text-ink">Converting…</p>
+        <p id="progress-pct" class="text-sm text-muted font-mono">0%</p>
+      </div>
+      <div class="h-1.5 bg-canvas-soft-2 rounded-full overflow-hidden">
+        <div id="progress-bar" class="h-full bg-ink rounded-full transition-all duration-300" style="width:0%"></div>
+      </div>
+      <p class="text-xs text-muted mt-2" id="progress-label">Preparing…</p>
+    </div>
+
+    <!-- Done state (hidden by default) -->
+    <div id="done-state" class="hidden border-t border-hairline p-4">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full bg-success/10 flex items-center justify-center shrink-0">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8.5l3.5 3.5 6.5-7" stroke="#10b981" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-ink">Ready to download</p>
+          <p id="done-meta" class="text-xs text-muted"></p>
+        </div>
+        <a
+          id="download-link"
+          href="#"
+          download
+          class="inline-flex items-center gap-1.5 h-9 px-4 text-sm font-medium text-canvas bg-ink rounded-lg hover:opacity-85 transition-opacity"
+        >
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <path d="M6.5 1v7M3.5 5.5l3 3 3-3M1.5 11h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Download
+        </a>
+      </div>
+    </div>
+
+    <!-- Playlist preview (hidden by default) -->
+    <div id="playlist-state" class="hidden border-t border-hairline">
+      <!-- Header -->
+      <div class="flex items-center gap-3 px-4 pt-4 pb-3">
+        <div class="w-8 h-8 rounded-lg bg-canvas-soft-2 border border-hairline flex items-center justify-center shrink-0 text-ink">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <rect x="1" y="2.5" width="10" height="2" rx="1" fill="currentColor"/>
+            <rect x="1" y="7" width="10" height="2" rx="1" fill="currentColor"/>
+            <rect x="1" y="11.5" width="7" height="2" rx="1" fill="currentColor"/>
+            <circle cx="13.5" cy="11.5" r="2.5" stroke="currentColor" stroke-width="1.25"/>
+            <path d="M13.5 9.5V13.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p id="playlist-title" class="text-sm font-semibold text-ink truncate"></p>
+          <p id="playlist-count" class="text-xs text-muted mt-0.5"></p>
+        </div>
+        <button id="clear-playlist-btn" class="shrink-0 w-7 h-7 flex items-center justify-center rounded-md text-muted hover:text-ink hover:bg-canvas-soft-2 transition-colors" aria-label="Clear">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M9.5 2.5L2.5 9.5M2.5 2.5L9.5 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Track list -->
+      <div id="pl-track-list" class="max-h-56 overflow-y-auto border-t border-hairline divide-y divide-hairline">
+        <!-- populated by JS -->
+      </div>
+
+      <!-- Format + Quality + Buttons -->
+      <div class="px-4 pt-3 pb-4">
+        <div class="flex gap-4 mb-3">
+          <div class="flex-1">
+            <p class="text-xs font-medium text-muted uppercase tracking-widest font-mono mb-2">Format</p>
+            <div class="flex gap-1.5">
+              {['MP3', 'WAV', 'M4A'].map(fmt => (
+                <button data-pl-format={fmt.toLowerCase()} class="pl-format-tab h-8 px-3 text-sm font-medium rounded-[64px] border border-hairline text-body bg-canvas hover:text-ink hover:border-hairline-strong transition-colors">
+                  {fmt}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div id="pl-quality-section" class="flex-1">
+            <p class="text-xs font-medium text-muted uppercase tracking-widest font-mono mb-2">Quality</p>
+            <div class="flex gap-1 flex-wrap">
+              {['128','192','256','320'].map((q,i) => (
+                <button data-pl-quality={q} class={`pl-quality-tab h-8 px-2.5 text-xs font-medium rounded-[64px] border border-hairline text-body bg-canvas hover:text-ink hover:border-hairline-strong transition-colors ${i===3?'tab-active':''}`}>
+                  {q}k
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <button id="playlist-convert-btn" class="w-full inline-flex items-center justify-center gap-2 h-10 text-sm font-medium text-canvas bg-ink rounded-lg hover:opacity-85 transition-opacity">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <path d="M7 1v8M3.5 6l3.5 3.5L10.5 6M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Download All as ZIP
+        </button>
+        <p class="text-xs text-muted text-center mt-1.5">First 50 tracks · Downloads as a ZIP file</p>
+      </div>
+    </div>
+
+    <!-- Error state (hidden by default) -->
+    <div id="error-state" class="hidden border-t border-hairline p-4">
+      <div class="flex items-start gap-3">
+        <div class="w-9 h-9 rounded-full bg-error/10 flex items-center justify-center shrink-0 mt-0.5">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M7 4v4M7 10v.5" stroke="#ee0000" stroke-width="1.75" stroke-linecap="round"/>
+            <circle cx="7" cy="7" r="6" stroke="#ee0000" stroke-width="1.25"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-sm font-medium text-ink">Something went wrong</p>
+          <p id="error-msg" class="text-xs text-muted mt-0.5"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paste shortcut hint -->
+  <p id="paste-hint" class="text-center text-xs text-muted mt-3">
+    Press <kbd class="px-1.5 py-0.5 text-xs bg-canvas-soft-2 border border-hairline rounded font-mono">Ctrl+V</kbd> to paste a copied YouTube link
+  </p>
+
+  <!-- Auth / usage bar (below card) -->
+  {!isLoggedIn ? (
+    <div class="mt-3 flex items-center justify-center gap-2 text-xs text-muted">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.25"/><path d="M6 5v3M6 3.5v.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg>
+      <span><a href="/login" class="text-ink font-medium hover:underline">Sign in</a> to download · Free account includes 25 downloads/month</span>
+    </div>
+  ) : !isPremium ? (
+    <div class="mt-3" id="usage-bar-wrapper">
+      <div class="flex items-center justify-between mb-1">
+        <span class="text-xs text-muted" id="usage-text">Loading usage…</span>
+        <a href="/account" class="text-xs text-ink font-medium hover:underline">Upgrade for unlimited →</a>
+      </div>
+      <div class="h-1 bg-canvas-soft-2 rounded-full overflow-hidden">
+        <div id="usage-progress" class="h-full bg-ink rounded-full transition-all duration-500" style="width:0%"></div>
+      </div>
+    </div>
+  ) : (
+    <p class="mt-3 text-center text-xs text-muted">
+      <span class="inline-flex items-center gap-1"><span class="text-amber-600 font-medium">Premium</span> · Unlimited downloads</span>
+    </p>
+  )}
+</section>
+
+<style>
+  .tab-active {
+    background-color: #171717 !important;
+    color: #ffffff !important;
+    border-color: #171717 !important;
+  }
+</style>
+
+<script>
+  // ─── State ───────────────────────────────────────────────────────────────────
+  type ConvState = 'idle' | 'loading' | 'ready' | 'converting' | 'done' | 'error' | 'playlist' | 'playlist-converting';
+
+  let state: ConvState = 'idle';
+  let selectedFormat = 'mp3';
+  let selectedQuality = '320';
+  let currentVideoId = '';
+  let currentVideoTitle = '';
+
+  // ─── Elements ────────────────────────────────────────────────────────────────
+  const urlInput    = document.getElementById('url-input') as HTMLInputElement;
+  const convertBtn  = document.getElementById('convert-btn') as HTMLButtonElement;
+  const btnLabel    = document.getElementById('btn-label') as HTMLSpanElement;
+  const btnArrow    = document.getElementById('btn-icon-arrow') as SVGElement;
+  const btnSpinner  = document.getElementById('btn-icon-spinner') as SVGElement;
+  const pasteHint   = document.getElementById('paste-hint') as HTMLParagraphElement;
+
+  const previewState  = document.getElementById('preview-state') as HTMLDivElement;
+  const progressState = document.getElementById('progress-state') as HTMLDivElement;
+  const doneState     = document.getElementById('done-state') as HTMLDivElement;
+  const errorState    = document.getElementById('error-state') as HTMLDivElement;
+
+  const videoThumb = document.getElementById('video-thumb') as HTMLImageElement;
+  const videoTitle = document.getElementById('video-title') as HTMLParagraphElement;
+  const videoMeta  = document.getElementById('video-meta') as HTMLParagraphElement;
+  const progressBar = document.getElementById('progress-bar') as HTMLDivElement;
+  const progressPct = document.getElementById('progress-pct') as HTMLParagraphElement;
+  const progressLbl = document.getElementById('progress-label') as HTMLParagraphElement;
+  const doneMeta    = document.getElementById('done-meta') as HTMLParagraphElement;
+  const downloadLink = document.getElementById('download-link') as HTMLAnchorElement;
+  const errorMsg    = document.getElementById('error-msg') as HTMLParagraphElement;
+  const clearBtn         = document.getElementById('clear-btn') as HTMLButtonElement;
+
+  // Playlist elements
+  const playlistState       = document.getElementById('playlist-state') as HTMLDivElement;
+  const playlistTitle       = document.getElementById('playlist-title') as HTMLParagraphElement;
+  const playlistCount       = document.getElementById('playlist-count') as HTMLParagraphElement;
+  const clearPlaylistBtn    = document.getElementById('clear-playlist-btn') as HTMLButtonElement;
+  const playlistConvertBtn  = document.getElementById('playlist-convert-btn') as HTMLButtonElement;
+  const plQualitySection    = document.getElementById('pl-quality-section') as HTMLDivElement;
+  const plTrackList         = document.getElementById('pl-track-list') as HTMLDivElement;
+  let currentPlaylistUrl    = '';
+  let plSelectedFormat      = 'mp3';
+  let plSelectedQuality     = '320';
+  let plTracks: { id: string; title: string }[] = [];
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+  function show(el: HTMLElement) { el.classList.remove('hidden'); }
+  function hide(el: HTMLElement) { el.classList.add('hidden'); }
+
+  function extractVideoId(url: string): string | null {
+    const patterns = [
+      /(?:youtube\.com\/watch[?&]v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+      /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
+    ];
+    for (const pat of patterns) {
+      const m = url.match(pat);
+      if (m) return m[1];
+    }
+    return null;
+  }
+
+function setBtnLoading(loading: boolean) {
+    if (loading) {
+      hide(btnArrow); show(btnSpinner);
+      btnLabel.textContent = 'Loading…';
+      convertBtn.disabled = true;
+    } else {
+      show(btnArrow); hide(btnSpinner);
+      btnLabel.textContent = 'Convert';
+      convertBtn.disabled = false;
+    }
+  }
+
+  function resetToIdle() {
+    urlInput.value = '';
+    urlInput.disabled = false;
+    setBtnLoading(false);
+    hide(previewState); hide(progressState); hide(doneState); hide(errorState); hide(playlistState);
+    show(pasteHint);
+    state = 'idle';
+    currentVideoId = '';
+    currentVideoTitle = '';
+    currentPlaylistUrl = '';
+  }
+
+  function isPlaylistUrl(url: string): boolean {
+    return url.includes('youtube.com/playlist?') ||
+           (url.includes('list=') && !url.includes('/shorts/'));
+  }
+
+  // ─── Playlist format/quality tabs ────────────────────────────────────────────
+  const plFormatTabs   = document.querySelectorAll<HTMLButtonElement>('.pl-format-tab');
+  const plQualityTabs  = document.querySelectorAll<HTMLButtonElement>('.pl-quality-tab');
+
+  plFormatTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      plFormatTabs.forEach(t => t.classList.remove('tab-active'));
+      tab.classList.add('tab-active');
+      plSelectedFormat = tab.dataset.plFormat ?? 'mp3';
+      plSelectedFormat === 'mp3' ? show(plQualitySection) : hide(plQualitySection);
+    });
+  });
+  plQualityTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      plQualityTabs.forEach(t => t.classList.remove('tab-active'));
+      tab.classList.add('tab-active');
+      plSelectedQuality = tab.dataset.plQuality ?? '320';
+    });
+  });
+  document.querySelector<HTMLButtonElement>('[data-pl-format="mp3"]')?.classList.add('tab-active');
+  document.querySelector<HTMLButtonElement>('[data-pl-quality="320"]')?.classList.add('tab-active');
+
+  // ─── Load playlist info ───────────────────────────────────────────────────────
+  async function loadPlaylistInfo(url: string) {
+    state = 'loading';
+    setBtnLoading(true);
+    hide(previewState); hide(progressState); hide(doneState); hide(errorState); hide(playlistState);
+    hide(pasteHint);
+
+    try {
+      const res = await fetch('/api/playlist-info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      if (!res.ok) throw new Error('Could not fetch playlist info');
+      const data = await res.json();
+
+      currentPlaylistUrl = url;
+      // Normalise: API may return [{id,title}] or legacy ['title'] strings
+      plTracks = (data.tracks ?? []).slice(0, 100).map((t: any) =>
+        typeof t === 'string' ? { id: '', title: t } : t
+      );
+
+      playlistTitle.textContent = data.title ?? 'Playlist';
+      const capped = plTracks.length;
+      playlistCount.textContent = `${capped} track${capped !== 1 ? 's' : ''}${data.count > 100 ? ' · showing first 100' : ''}`;
+
+      renderTrackList();
+
+      urlInput.disabled = true;
+      setBtnLoading(false);
+      state = 'playlist';
+      show(playlistState);
+    } catch (e: any) {
+      showError(e?.message ?? 'Could not load playlist. Check the URL and try again.');
+    }
+  }
+
+  // ─── Render track list ────────────────────────────────────────────────────────
+  function renderTrackList() {
+    plTrackList.innerHTML = '';
+
+    if (!plTracks.length) {
+      plTrackList.innerHTML = '<p class="text-xs text-muted text-center py-4">No tracks found</p>';
+      return;
+    }
+
+    plTracks.forEach(({ id, title }, i) => {
+      const safeTitle = (title || `Track ${i + 1}`).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const safeAttr  = (title || '').replace(/"/g, '&quot;');
+      const thumbHtml = id
+        ? `<img src="https://i.ytimg.com/vi/${id}/mqdefault.jpg" alt="" loading="lazy" class="w-14 h-[32px] rounded object-cover shrink-0 bg-canvas-soft-2" onerror="this.style.display='none'" />`
+        : `<div class="w-14 h-[32px] rounded shrink-0 bg-canvas-soft-2"></div>`;
+      const dlBtnHtml = id ? `
+        <button
+          class="track-dl-btn shrink-0 w-8 h-8 flex items-center justify-center rounded-lg border border-hairline text-muted hover:text-ink hover:border-hairline-strong transition-colors"
+          data-id="${id}" data-title="${safeAttr}" title="Download"
+        >
+          <svg class="dl-icon" width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M3.5 6l3.5 3.5L10.5 6M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg class="spin-icon hidden animate-spin" width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="20 15" stroke-linecap="round"/></svg>
+          <svg class="done-icon hidden" width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2.5 7l3 3 5-5.5" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>` : '';
+
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-3 px-4 py-2.5 hover:bg-canvas-soft-2 transition-colors';
+      row.innerHTML = `
+        <span class="text-xs text-muted w-5 text-right shrink-0 font-mono">${i + 1}</span>
+        ${thumbHtml}
+        <span class="flex-1 text-sm text-ink truncate min-w-0">${safeTitle}</span>
+        ${dlBtnHtml}
+      `;
+      plTrackList.appendChild(row);
+    });
+
+    plTrackList.querySelectorAll<HTMLButtonElement>('.track-dl-btn').forEach(btn => {
+      btn.addEventListener('click', () => downloadTrack(btn));
+    });
+  }
+
+  // ─── Per-track download ───────────────────────────────────────────────────────
+  async function downloadTrack(btn: HTMLButtonElement) {
+    if (btn.disabled) return;
+    const id    = btn.dataset.id!;
+    const title = btn.dataset.title!;
+    const dlIcon   = btn.querySelector('.dl-icon') as SVGElement;
+    const spinIcon = btn.querySelector('.spin-icon') as SVGElement;
+    const doneIcon = btn.querySelector('.done-icon') as SVGElement;
+
+    btn.disabled = true;
+    dlIcon.classList.add('hidden');
+    spinIcon.classList.remove('hidden');
+
+    try {
+      const res = await fetch('/api/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: `https://www.youtube.com/watch?v=${id}`,
+          format: plSelectedFormat,
+          quality: plSelectedQuality,
+          title,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Conversion failed');
+
+      const blob      = await res.blob();
+      const filename  = res.headers.get('x-filename') ?? `${title}.${plSelectedFormat}`;
+      const objectUrl = URL.createObjectURL(blob);
+      const a         = document.createElement('a');
+      a.href          = objectUrl;
+      a.download      = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+
+      spinIcon.classList.add('hidden');
+      doneIcon.classList.remove('hidden');
+      // Reset to download icon after 4s so user can re-download
+      setTimeout(() => {
+        doneIcon.classList.add('hidden');
+        dlIcon.classList.remove('hidden');
+        btn.disabled = false;
+      }, 4000);
+
+    } catch {
+      spinIcon.classList.add('hidden');
+      dlIcon.classList.remove('hidden');
+      btn.disabled = false;
+      btn.title = 'Failed — try again';
+    }
+  }
+
+  // ─── Download playlist as ZIP ─────────────────────────────────────────────────
+  async function startPlaylistConvert() {
+    if (state !== 'playlist') return;
+
+    state = 'playlist-converting';
+    hide(playlistState);
+    show(progressState);
+    playlistConvertBtn.disabled = true;
+    setProgress(5, 'Starting playlist download…');
+
+    try {
+      const res = await fetch('/api/playlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: currentPlaylistUrl, format: plSelectedFormat, quality: plSelectedQuality }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const code = err?.error ?? '';
+        if (code === 'login_required') { window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname); return; }
+        if (code === 'limit_exceeded') throw new Error(`Download limit reached (${err.used}/${err.limit}). Upgrade to Premium for unlimited downloads.`);
+        throw new Error(err?.error ?? `Server error ${res.status}`);
+      }
+
+      setProgress(40, 'Downloading and converting tracks…');
+
+      const reader = res.body!.getReader();
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+      const total = parseInt(res.headers.get('content-length') ?? '0', 10);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (total > 0) {
+          const pct = Math.min(95, 40 + Math.round((received / total) * 55));
+          setProgress(pct, `Downloading ZIP… ${(received / 1_048_576).toFixed(1)} MB`);
+        } else {
+          setProgress(75, `Downloading ZIP… ${(received / 1_048_576).toFixed(1)} MB`);
+        }
+      }
+
+      setProgress(100, 'Done!');
+      await new Promise(r => setTimeout(r, 300));
+
+      const trackCount = res.headers.get('x-track-count') ?? '?';
+      const blob       = new Blob(chunks, { type: 'application/zip' });
+      const objectUrl  = URL.createObjectURL(blob);
+
+      doneMeta.textContent = `ZIP · ${trackCount} tracks · ${(blob.size / 1_048_576).toFixed(1)} MB`;
+      downloadLink.href = objectUrl;
+      downloadLink.setAttribute('download', `playlist.zip`);
+      downloadLink.removeAttribute('target');
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 120_000);
+
+      hide(progressState);
+      show(doneState);
+      state = 'done';
+      playlistConvertBtn.disabled = false;
+      setBtnLoading(false);
+
+    } catch (e: any) {
+      playlistConvertBtn.disabled = false;
+      hide(progressState);
+      show(playlistState);
+      state = 'playlist';
+      // Show inline error without resetting playlist state
+      const msg = e?.message ?? 'Playlist download failed. Try again.';
+      errorMsg.textContent = msg;
+      show(errorState);
+      setTimeout(() => { if (state === 'playlist') hide(errorState); }, 4000);
+    }
+  }
+
+  clearPlaylistBtn.addEventListener('click', resetToIdle);
+  playlistConvertBtn.addEventListener('click', startPlaylistConvert);
+
+  function showError(msg: string) {
+    state = 'error';
+    setBtnLoading(false);
+    urlInput.disabled = false;
+    hide(previewState); hide(progressState); hide(doneState);
+    errorMsg.textContent = msg;
+    show(errorState);
+    setTimeout(() => { if (state === 'error') { hide(errorState); state = 'idle'; setBtnLoading(false); } }, 4000);
+  }
+
+  // ─── Format / Quality tabs ────────────────────────────────────────────────────
+  const formatTabs = document.querySelectorAll<HTMLButtonElement>('.format-tab');
+  const qualityTabs = document.querySelectorAll<HTMLButtonElement>('.quality-tab');
+  const qualitySection = document.getElementById('quality-section') as HTMLDivElement;
+
+  formatTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      formatTabs.forEach(t => t.classList.remove('tab-active'));
+      tab.classList.add('tab-active');
+      selectedFormat = tab.dataset.format ?? 'mp3';
+      // Show quality only for MP3
+      if (selectedFormat === 'mp3') {
+        show(qualitySection);
+      } else {
+        hide(qualitySection);
+      }
+    });
+  });
+
+  qualityTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      qualityTabs.forEach(t => t.classList.remove('tab-active'));
+      tab.classList.add('tab-active');
+      selectedQuality = tab.dataset.quality ?? '320';
+    });
+  });
+
+  // Set defaults
+  document.querySelector<HTMLButtonElement>('[data-format="mp3"]')?.classList.add('tab-active');
+  document.querySelector<HTMLButtonElement>('[data-quality="320"]')?.classList.add('tab-active');
+
+  // ─── Load video info ─────────────────────────────────────────────────────────
+  async function loadVideoInfo(url: string) {
+    if (state !== 'idle' && state !== 'error') return;
+
+    // Route playlist URLs to the playlist flow
+    if (isPlaylistUrl(url)) {
+      await loadPlaylistInfo(url);
+      return;
+    }
+
+    const videoId = extractVideoId(url);
+    if (!videoId) {
+      showError('Please enter a valid YouTube URL (video, playlist, or Short).');
+      return;
+    }
+
+    state = 'loading';
+    setBtnLoading(true);
+    hide(previewState); hide(progressState); hide(doneState); hide(errorState);
+    hide(pasteHint);
+
+    try {
+      const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+      const res = await fetch(oembedUrl);
+      if (!res.ok) throw new Error('Video not found or unavailable.');
+      const data = await res.json();
+
+      currentVideoId = videoId ?? '';
+      currentVideoTitle = data.title ?? 'Unknown title';
+      const thumbSrc = videoId
+        ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+        : '/placeholder-thumb.jpg';
+
+      videoThumb.src = thumbSrc;
+      videoThumb.alt = currentVideoTitle;
+      videoTitle.textContent = currentVideoTitle;
+      videoMeta.textContent = data.author_name ?? '';
+
+      setBtnLoading(false);
+      btnLabel.textContent = 'Convert';
+      urlInput.disabled = true;
+      state = 'ready';
+      show(previewState);
+    } catch (e: any) {
+      showError(e?.message ?? 'Could not fetch video info. Check the URL and try again.');
+    }
+  }
+
+  // ─── Convert ─────────────────────────────────────────────────────────────────
+  function setProgress(pct: number, label: string) {
+    progressBar.style.width = `${pct}%`;
+    progressPct.textContent = `${pct}%`;
+    progressLbl.textContent = label;
+  }
+
+  async function startConvert() {
+    if (state !== 'ready') return;
+
+    state = 'converting';
+    hide(previewState);
+    show(progressState);
+    convertBtn.disabled = true;
+    btnLabel.textContent = 'Converting…';
+    setProgress(0, 'Requesting conversion…');
+
+    const videoUrl = urlInput.value.trim();
+
+    try {
+      // ── Step 1: POST to our own /api/convert endpoint ────────────────────────
+      setProgress(20, 'Fetching audio stream from YouTube…');
+
+      const apiRes = await fetch('/api/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: videoUrl, format: selectedFormat, quality: selectedQuality, title: currentVideoTitle }),
+      });
+
+      if (!apiRes.ok) {
+        const errBody = await apiRes.json().catch(() => ({}));
+        const code: string = errBody?.error ?? '';
+        if (code === 'login_required') { window.location.href = '/login?redirect=' + encodeURIComponent(window.location.pathname); return; }
+        if (code === 'limit_exceeded') {
+          throw new Error(`Download limit reached (${errBody.used}/${errBody.limit}). Upgrade to Premium for unlimited downloads.`);
+        }
+        throw new Error(
+          code === 'private'        ? 'This video is private.'
+          : code === 'age_restricted' ? 'Age-restricted videos cannot be converted.'
+          : code === 'not_found'    ? 'Video not found.'
+          : `Server error ${apiRes.status}`,
+        );
+      }
+
+      // ── Step 2: stream the response body so we can show real download progress
+      setProgress(45, `Encoding ${selectedFormat.toUpperCase()}…`);
+
+      const contentLength = apiRes.headers.get('content-length');
+      const total = contentLength ? parseInt(contentLength, 10) : 0;
+      const suggestedName = apiRes.headers.get('x-filename')
+        ?? `${currentVideoTitle.replace(/[^\w\s-]/g, '').trim() || 'audio'}.${selectedFormat}`;
+
+      const reader = apiRes.body!.getReader();
+      const chunks: Uint8Array[] = [];
+      let received = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        received += value.length;
+        if (total > 0) {
+          const pct = Math.min(92, 45 + Math.round((received / total) * 47));
+          setProgress(pct, `Downloading… ${(received / 1_048_576).toFixed(1)} MB`);
+        } else {
+          setProgress(75, `Downloading… ${(received / 1_048_576).toFixed(1)} MB`);
+        }
+      }
+
+      setProgress(97, 'Preparing file…');
+      const blob = new Blob(chunks, { type: apiRes.headers.get('content-type') ?? 'audio/mpeg' });
+      const objectUrl = URL.createObjectURL(blob);
+      const fileSizeMB = (blob.size / 1_048_576).toFixed(1);
+
+      setProgress(100, 'Done!');
+      await new Promise(r => setTimeout(r, 300));
+
+      // ── Step 3: show done state with real file size ───────────────────────────
+      const fmtLabel = selectedFormat === 'mp3' ? `MP3 · ${selectedQuality} kbps` : selectedFormat.toUpperCase();
+      doneMeta.textContent = `${fmtLabel} · ${fileSizeMB} MB`;
+      downloadLink.href = objectUrl;
+      downloadLink.setAttribute('download', suggestedName);
+      downloadLink.removeAttribute('target');
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 120_000);
+
+      hide(progressState);
+      show(doneState);
+      state = 'done';
+      convertBtn.disabled = false;
+      btnLabel.textContent = 'Convert';
+      show(btnArrow); hide(btnSpinner);
+
+    } catch (e: any) {
+      const msg = e?.message ?? 'Conversion failed.';
+      const friendly = msg.includes('rate') ? 'Too many requests — wait a moment and try again.'
+        : msg.includes('unavailable') || msg.includes('private') ? 'This video is unavailable or private.'
+        : msg.includes('age') ? 'Age-restricted videos cannot be converted.'
+        : msg.includes('live') ? 'Live streams cannot be converted yet.'
+        : `${msg} Please try again.`;
+      showError(friendly);
+      hide(progressState);
+      show(previewState);
+    }
+  }
+
+  // ─── Event listeners ──────────────────────────────────────────────────────────
+  convertBtn.addEventListener('click', () => {
+    if (state === 'idle' || state === 'error') {
+      const url = urlInput.value.trim();
+      if (url) loadVideoInfo(url);
+    } else if (state === 'ready') {
+      startConvert();
+    } else if (state === 'done') {
+      resetToIdle();
+    }
+  });
+
+  urlInput.addEventListener('paste', (e) => {
+    setTimeout(() => {
+      const url = (e.target as HTMLInputElement).value.trim();
+      if (url && extractVideoId(url)) loadVideoInfo(url);
+    }, 0);
+  });
+
+  urlInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const url = urlInput.value.trim();
+      if (url) loadVideoInfo(url);
+    }
+  });
+
+  clearBtn.addEventListener('click', resetToIdle);
+
+  // Convert Again from done state
+  doneState.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('button');
+    if (btn?.id === 'convert-again') resetToIdle();
+  });
+
+  // ─── Usage bar (free users) ─────────────────────────────────────────────────
+  const usageText     = document.getElementById('usage-text');
+  const usageProgress = document.getElementById('usage-progress');
+  if (usageText && usageProgress) {
+    fetch('/api/me').then(r => r.json()).then(({ user }) => {
+      if (!user || user.plan === 'premium') return;
+      const pct = Math.min(100, Math.round((user.count / user.limit) * 100));
+      usageText.textContent    = `${user.count} / ${user.limit} downloads used this ${user.window}`;
+      usageProgress.style.width = `${pct}%`;
+      if (pct >= 90) usageProgress.classList.replace('bg-ink', 'bg-red-500');
+      else if (pct >= 70) usageProgress.classList.replace('bg-ink', 'bg-amber-500');
+    }).catch(() => {});
+  }
+</script>

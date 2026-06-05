@@ -1,0 +1,122 @@
+---
+const user = Astro.locals.user;
+---
+
+<header class="fixed top-0 left-0 right-0 z-50 h-16 bg-canvas/90 backdrop-blur-md border-b border-hairline">
+  <div class="max-w-6xl mx-auto px-6 h-full flex items-center justify-between gap-6">
+
+    <!-- Logo -->
+    <a href="/" class="flex items-center gap-2 shrink-0">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="28" height="28" rx="7" fill="#171717"/>
+        <path d="M9 7h6a3 3 0 0 1 3 3v2H9V7z" fill="white" opacity="0.9"/>
+        <rect x="9" y="7" width="2" height="9" rx="1" fill="white"/>
+        <circle cx="9" cy="17" r="2.5" fill="white"/>
+        <path d="M13 19l2.5 2.5L18 19" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <line x1="15.5" y1="14" x2="15.5" y2="21.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span class="text-sm font-semibold text-ink tracking-tight">youtube2mp3file</span>
+    </a>
+
+    <!-- Desktop nav links -->
+    <nav class="hidden md:flex items-center gap-0.5" aria-label="Main navigation">
+      <a href="/#features" class="text-body text-sm px-3 py-1.5 rounded-full hover:text-ink hover:bg-canvas-soft-2 transition-colors duration-150">Features</a>
+      <a href="/#how-it-works" class="text-body text-sm px-3 py-1.5 rounded-full hover:text-ink hover:bg-canvas-soft-2 transition-colors duration-150">How it works</a>
+      <a href="/#formats" class="text-body text-sm px-3 py-1.5 rounded-full hover:text-ink hover:bg-canvas-soft-2 transition-colors duration-150">Formats</a>
+      <a href="/#faq" class="text-body text-sm px-3 py-1.5 rounded-full hover:text-ink hover:bg-canvas-soft-2 transition-colors duration-150">FAQ</a>
+      {user?.isAdmin && (
+        <a href="/admin" class="text-body text-sm px-3 py-1.5 rounded-full hover:text-ink hover:bg-canvas-soft-2 transition-colors duration-150">Admin</a>
+      )}
+    </nav>
+
+    <!-- Right CTA -->
+    <div class="flex items-center gap-2">
+      {user ? (
+        <div class="relative" id="user-menu-wrapper">
+          <button id="user-menu-btn" class="flex items-center gap-2 h-8 px-3 text-xs font-medium text-body bg-canvas border border-hairline rounded-md hover:text-ink hover:border-hairline-strong transition-colors">
+            <span class="hidden sm:block truncate max-w-[120px]">{user.email}</span>
+            {user.plan === 'premium' && (
+              <span class="inline-flex items-center h-4 px-1.5 text-[10px] font-semibold bg-amber-100 text-amber-700 rounded-full">PRO</span>
+            )}
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>
+          </button>
+          <div id="user-dropdown" class="hidden absolute right-0 top-10 w-44 bg-canvas border border-hairline rounded-lg shadow-lg py-1 z-50">
+            <a href="/account" class="block px-4 py-2 text-sm text-body hover:bg-canvas-soft-2 hover:text-ink transition-colors">My Account</a>
+            {user.isAdmin && <a href="/admin" class="block px-4 py-2 text-sm text-body hover:bg-canvas-soft-2 hover:text-ink transition-colors">Admin Panel</a>}
+            <hr class="my-1 border-hairline" />
+            <button id="logout-btn" class="w-full text-left px-4 py-2 text-sm text-body hover:bg-canvas-soft-2 hover:text-ink transition-colors">Sign out</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <a href="/login" class="hidden sm:inline-flex items-center h-7 px-3 text-xs font-medium text-body bg-canvas border border-hairline rounded-md hover:text-ink hover:border-hairline-strong transition-colors duration-150">
+            Log in
+          </a>
+          <a href="/signup" class="inline-flex items-center h-7 px-3 text-xs font-medium text-canvas bg-ink rounded-md hover:opacity-85 transition-opacity duration-150">
+            Sign up free
+          </a>
+        </>
+      )}
+      <!-- Mobile hamburger -->
+      <button id="mobile-menu-btn" class="md:hidden flex items-center justify-center w-8 h-8 rounded-md text-body hover:text-ink hover:bg-canvas-soft-2 transition-colors" aria-label="Open menu" aria-expanded="false">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <rect x="0" y="3" width="16" height="1.5" rx="0.75"/>
+          <rect x="0" y="7.25" width="16" height="1.5" rx="0.75"/>
+          <rect x="0" y="11.5" width="16" height="1.5" rx="0.75"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile menu -->
+  <div id="mobile-menu" class="hidden md:hidden absolute top-16 left-0 right-0 bg-canvas border-b border-hairline shadow-lg">
+    <nav class="max-w-6xl mx-auto px-6 py-4 flex flex-col gap-1">
+      <a href="/#features" class="text-body text-sm px-3 py-2 rounded-md hover:bg-canvas-soft-2 transition-colors">Features</a>
+      <a href="/#how-it-works" class="text-body text-sm px-3 py-2 rounded-md hover:bg-canvas-soft-2 transition-colors">How it works</a>
+      <a href="/#formats" class="text-body text-sm px-3 py-2 rounded-md hover:bg-canvas-soft-2 transition-colors">Formats</a>
+      <a href="/#faq" class="text-body text-sm px-3 py-2 rounded-md hover:bg-canvas-soft-2 transition-colors">FAQ</a>
+      {user ? (
+        <>
+          <a href="/account" class="text-body text-sm px-3 py-2 rounded-md hover:bg-canvas-soft-2 transition-colors">My Account</a>
+          {user.isAdmin && <a href="/admin" class="text-body text-sm px-3 py-2 rounded-md hover:bg-canvas-soft-2 transition-colors">Admin</a>}
+          <button id="logout-btn-mobile" class="text-left text-body text-sm px-3 py-2 rounded-md hover:bg-canvas-soft-2 transition-colors">Sign out</button>
+        </>
+      ) : (
+        <>
+          <a href="/login" class="text-body text-sm px-3 py-2 rounded-md hover:bg-canvas-soft-2 transition-colors">Log in</a>
+          <a href="/signup" class="text-body text-sm px-3 py-2 rounded-md hover:bg-canvas-soft-2 transition-colors">Sign up free</a>
+        </>
+      )}
+    </nav>
+  </div>
+</header>
+
+<script>
+  // Mobile menu toggle
+  const btn = document.getElementById('mobile-menu-btn');
+  const menu = document.getElementById('mobile-menu');
+  btn?.addEventListener('click', () => {
+    const open = menu?.classList.toggle('hidden') === false;
+    btn.setAttribute('aria-expanded', String(open));
+  });
+  menu?.querySelectorAll('a').forEach(a => a.addEventListener('click', () => menu.classList.add('hidden')));
+
+  // User dropdown
+  const userBtn = document.getElementById('user-menu-btn');
+  const userDrop = document.getElementById('user-dropdown');
+  userBtn?.addEventListener('click', () => userDrop?.classList.toggle('hidden'));
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('user-menu-wrapper')?.contains(e.target as Node)) {
+      userDrop?.classList.add('hidden');
+    }
+  });
+
+  // Logout
+  async function logout() {
+    const { authClient } = await import('../lib/auth-client');
+    await authClient.signOut();
+    window.location.href = '/';
+  }
+  document.getElementById('logout-btn')?.addEventListener('click', logout);
+  document.getElementById('logout-btn-mobile')?.addEventListener('click', logout);
+</script>

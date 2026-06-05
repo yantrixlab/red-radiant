@@ -1,11 +1,75 @@
 ---
-import Welcome from '../components/Welcome.astro';
 import Layout from '../layouts/Layout.astro';
-
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+import Nav from '../components/Nav.astro';
+import Hero from '../components/Hero.astro';
+import HowItWorks from '../components/HowItWorks.astro';
+import Features from '../components/Features.astro';
+import Formats from '../components/Formats.astro';
+import FAQ from '../components/FAQ.astro';
+import Footer from '../components/Footer.astro';
 ---
 
 <Layout>
-	<Welcome />
+  <Nav />
+  <main>
+    <Hero />
+    <HowItWorks />
+    <Features />
+    <Formats />
+
+    <!-- CTA band (dark) -->
+    <section class="py-24 bg-ink">
+      <div class="max-w-3xl mx-auto px-6 text-center">
+        <p class="text-xs font-mono text-canvas/40 uppercase tracking-widest mb-3">Get started</p>
+        <h2 class="text-3xl font-semibold text-canvas tracking-tight mb-4">
+          Ready to download your first track?
+        </h2>
+        <p class="text-base text-canvas/60 mb-8 max-w-md mx-auto">
+          No account, no app, no waiting. The world's cleanest YouTube to MP3 converter is one paste away.
+        </p>
+        <a
+          href="#converter"
+          class="inline-flex items-center gap-2 h-12 px-8 text-base font-medium text-ink bg-canvas rounded-[100px] hover:opacity-85 transition-opacity"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2v9M4.5 8l3.5 3.5L11.5 8M2 13h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Convert for free
+        </a>
+      </div>
+    </section>
+
+    <!-- SEO content -->
+    <section class="py-24 bg-canvas-soft border-t border-hairline">
+      <div class="max-w-3xl mx-auto px-6">
+        <p class="text-xs font-mono text-muted uppercase tracking-widest mb-3">About this tool</p>
+        <h2 class="text-2xl font-semibold text-ink tracking-tight mb-6">The world's best YouTube to MP3 converter.</h2>
+        <div class="prose-custom space-y-4 text-sm text-body leading-relaxed">
+          <p>
+            <strong class="text-ink font-medium">youtube2mp3file.com</strong> is a free, browser-based tool that converts any YouTube video, playlist, or Short into high-quality audio files — including MP3, WAV, and M4A formats. No software installation, no account registration, and absolutely no ads.
+          </p>
+          <p>
+            Whether you're saving a music video for offline listening, extracting the audio from a podcast, or archiving a lecture, our converter handles it in seconds. We support bitrates up to <strong class="text-ink font-medium">320 kbps</strong> for MP3 — the highest quality available — as well as lossless WAV for professional use.
+          </p>
+          <p>
+            Unlike other converters that flood you with pop-up ads and redirect you through multiple pages, youtube2mp3file keeps things simple: paste your link, pick your format, and download. That's the whole experience.
+          </p>
+          <p>
+            Our tool works on every platform and device — Windows, Mac, Linux, iPhone, and Android — through any modern web browser. No plugins, no extensions, no installs.
+          </p>
+          <h3 class="text-base font-semibold text-ink mt-6 mb-2">How to convert YouTube to MP3</h3>
+          <ol class="list-decimal list-inside space-y-1 pl-2 text-body">
+            <li>Copy the YouTube video URL from your browser's address bar</li>
+            <li>Paste it into the converter input above</li>
+            <li>Select MP3 as your format and choose your preferred quality (we recommend 320 kbps)</li>
+            <li>Click "Convert" and wait a few seconds</li>
+            <li>Click "Download" to save your MP3 file</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <FAQ />
+  </main>
+  <Footer />
 </Layout>

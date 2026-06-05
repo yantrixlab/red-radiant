@@ -1,0 +1,102 @@
+---
+const faqs = [
+  {
+    q: 'Is youtube2mp3file.com completely free?',
+    a: 'Yes — completely free, with no hidden fees, no premium tiers, and no download limits. We believe tools like this should be accessible to everyone.',
+  },
+  {
+    q: 'Do I need to create an account?',
+    a: 'No. Just paste your YouTube link and click Convert. We never ask for your email, name, or any personal information.',
+  },
+  {
+    q: 'Is it legal to convert YouTube videos to MP3?',
+    a: 'Converting YouTube videos for personal, non-commercial use is generally allowed in most jurisdictions. Always respect the copyright of the content creator and YouTube\'s terms of service. Do not distribute downloaded audio commercially without permission from the rights holder.',
+  },
+  {
+    q: 'What YouTube URL formats are supported?',
+    a: 'We support all standard YouTube formats: youtube.com/watch, youtu.be short links, youtube.com/shorts, embedded URLs, and full playlist links (youtube.com/playlist).',
+  },
+  {
+    q: 'What is the best quality for MP3 downloads?',
+    a: '320 kbps is the highest MP3 quality available and is indistinguishable from the source for most listeners. If file size matters more than quality, 192 kbps is an excellent middle ground. WAV gives you lossless quality at the cost of larger files.',
+  },
+  {
+    q: 'Can I download an entire YouTube playlist?',
+    a: 'Yes. Paste the full playlist URL (the one containing "list=") and we\'ll convert each video in the playlist. Each track is downloaded as a separate file.',
+  },
+  {
+    q: 'How long does conversion take?',
+    a: 'Most videos convert in under 15 seconds. Longer videos (1+ hour) may take up to 30 seconds. Playlist conversions depend on the number of tracks.',
+  },
+  {
+    q: 'Does it work on mobile (iPhone, Android)?',
+    a: 'Yes. The converter is fully responsive and works in any mobile browser — Safari on iOS, Chrome on Android, and everything in between. No app install needed.',
+  },
+  {
+    q: 'Are there ads on this website?',
+    a: 'No. We made a deliberate decision to keep this site completely ad-free. No pop-ups, no interstitials, no banner ads.',
+  },
+  {
+    q: 'Are my downloads private?',
+    a: 'We do not log or store your download history. Once your file is ready, it is served directly to your device and deleted from our servers within minutes.',
+  },
+];
+---
+
+<section id="faq" class="py-24 bg-canvas-soft border-t border-hairline">
+  <div class="max-w-3xl mx-auto px-6">
+
+    <div class="text-center mb-16">
+      <p class="text-xs font-mono text-muted uppercase tracking-widest mb-3">FAQ</p>
+      <h2 class="text-3xl font-semibold text-ink tracking-tight">Frequently asked questions.</h2>
+      <p class="text-base text-body mt-3">Everything you need to know about converting YouTube to audio.</p>
+    </div>
+
+    <div class="space-y-2" role="list">
+      {faqs.map((item, i) => (
+        <div
+          class="faq-item bg-canvas rounded-xl border border-hairline overflow-hidden shadow-[0px_1px_1px_#00000005,inset_0_0_0_1px_#00000014]"
+          role="listitem"
+        >
+          <button
+            class="faq-trigger w-full flex items-center justify-between gap-4 px-6 py-4 text-left group"
+            aria-expanded="false"
+            aria-controls={`faq-answer-${i}`}
+          >
+            <span class="text-sm font-medium text-ink group-hover:text-ink">{item.q}</span>
+            <span class="faq-icon shrink-0 w-5 h-5 flex items-center justify-center rounded-full border border-hairline text-muted group-hover:border-hairline-strong group-hover:text-ink transition-all duration-150">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path class="faq-plus" d="M5 2v6M2 5h6" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+                <path class="faq-minus hidden" d="M2 5h6" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+              </svg>
+            </span>
+          </button>
+          <div
+            id={`faq-answer-${i}`}
+            class="faq-answer hidden px-6 pb-5"
+          >
+            <p class="text-sm text-body leading-relaxed">{item.a}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll('.faq-trigger').forEach(trigger => {
+    trigger.addEventListener('click', () => {
+      const item = trigger.closest('.faq-item') as HTMLElement;
+      const answer = item.querySelector('.faq-answer') as HTMLElement;
+      const plus = item.querySelector('.faq-plus') as SVGPathElement;
+      const minus = item.querySelector('.faq-minus') as SVGPathElement;
+      const expanded = trigger.getAttribute('aria-expanded') === 'true';
+
+      trigger.setAttribute('aria-expanded', String(!expanded));
+      answer.classList.toggle('hidden');
+      plus.classList.toggle('hidden');
+      minus.classList.toggle('hidden');
+    });
+  });
+</script>
