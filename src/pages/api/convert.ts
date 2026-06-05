@@ -2,11 +2,76 @@ import type { APIRoute } from 'astro';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import https from 'https';
+import http from 'http';
 import { randomUUID } from 'crypto';
-import ytdl from '@distube/ytdl-core';
 import { ffmpegConvert, nodeToWebStream, cleanup, extractVideoId, jsonRes } from '../../lib/ytdlp.server';
 
 export const prerender = false;
+
+// Multiple Piped instances as fallback
+const PIPED_INSTANCES = [
+  'https://pipedapi.kavin.rocks',
+  'https://piped-api.garudalinux.org',
+  'https://api.piped.yt',
+  'https://pipedapi.in.projectsegfau.lt',
+];
+
+async function fetchJson(url: string): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const lib = url.startsWith('https') ? https : http;
+    lib.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+      if (res.statusCode === 301 || res.statusCode === 302) {
+        return fetchJson(res.headers.location!).then(resolve).catch(reject);
+      }
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch { reject(new Error('Invalid JSON from Piped')); }
+      });
+    }).on('error', reject);
+  });
+}
+
+async function downloadUrl(url: string, dest: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(dest);
+    const lib = url.startsWith('https') ? https : http;
+    const get = (u: string) => lib.get(u, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location)
+        return get(res.headers.location);
+      if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
+      res.pipe(file);
+      file.on('finish', () => file.close(() => resolve()));
+    }).on('error', reject);
+    get(url);
+  });
+}
+
+async function getAudioUrl(videoId: string): Promise<string> {
+  for (const instance of PIPED_INSTANCES) {
+    try {
+      console.log(`[piped] Trying ${instance}…`);
+      const data = await fetchJson(`${instance}/streams/${videoId}`);
+
+      // Find best audio stream
+      const audioStreams: any[] = data.audioStreams ?? [];
+      if (!audioStreams.length) continue;
+
+      // Sort by bitrate descending
+      audioStreams.sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
+      const best = audioStreams[0];
+      if (best?.url) {
+        console.log(`[piped] Got audio stream from ${instance}, bitrate: ${best.bitrate}`);
+        return best.url;
+      }
+    } catch (e: any) {
+      console.warn(`[piped] ${instance} failed: ${e.message}`);
+    }
+  }
+  throw new Error('All Piped instances failed');
+}
 
 export const POST: APIRoute = async ({ request }) => {
 
@@ -26,26 +91,10 @@ export const POST: APIRoute = async ({ request }) => {
   const outputFile = path.join(tmpDir, `ytdl_out_${tmpId}.${format}`);
 
   try {
-    console.log(`[ytdl] Downloading audio for ${videoId}…`);
+    const audioUrl = await getAudioUrl(videoId);
 
-    const audioStream = ytdl(`https://www.youtube.com/watch?v=${videoId}`, {
-      filter: 'audioonly',
-      quality: 'highestaudio',
-      requestOptions: {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36',
-        },
-      },
-    });
-
-    // Save raw audio to file
-    await new Promise<void>((resolve, reject) => {
-      const write = fs.createWriteStream(rawFile);
-      audioStream.pipe(write);
-      write.on('finish', resolve);
-      write.on('error', reject);
-      audioStream.on('error', reject);
-    });
+    console.log(`[download] Fetching audio stream…`);
+    await downloadUrl(audioUrl, rawFile);
 
     console.log(`[ffmpeg] Converting to ${format}…`);
     await ffmpegConvert(rawFile, outputFile, format, quality);
@@ -55,8 +104,8 @@ export const POST: APIRoute = async ({ request }) => {
     const fileStream = fs.createReadStream(outputFile);
     fileStream.on('close', () => setTimeout(() => cleanup(outputFile), 10_000));
 
-    const contentType = format === 'wav' ? 'audio/wav'
-                      : format === 'm4a' ? 'audio/mp4'
+    const contentType = format === 'wav'  ? 'audio/wav'
+                      : format === 'm4a'  ? 'audio/mp4'
                       : 'audio/mpeg';
 
     return new Response(nodeToWebStream(fileStream), {
