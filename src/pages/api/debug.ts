@@ -47,6 +47,31 @@ export const GET: APIRoute = async ({ url }) => {
     results.betterAuthError = e.message;
   }
 
+  // Test direct user insert via Drizzle
+  try {
+    const { drizzle } = await import('drizzle-orm/postgres-js');
+    const postgres2 = (await import('postgres')).default;
+    const schema2 = await import('../../lib/schema');
+    const client2 = postgres2(dbUrl, { max: 1, ssl: 'prefer', connect_timeout: 10 });
+    const db2 = drizzle(client2, { schema: schema2 });
+    const testId = 'debug-test-' + Date.now();
+    await db2.insert(schema2.user).values({
+      id: testId,
+      name: 'Debug Test',
+      email: `debugtest-${Date.now()}@test.com`,
+      emailVerified: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const { eq } = await import('drizzle-orm');
+    await db2.delete(schema2.user).where(eq(schema2.user.id, testId));
+    await client2.end();
+    results.directInsert = 'OK';
+  } catch (e: any) {
+    results.directInsert = 'FAILED';
+    results.directInsertError = e.message;
+  }
+
   return new Response(JSON.stringify(results, null, 2), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
