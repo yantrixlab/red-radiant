@@ -1,6 +1,7 @@
 import { createRequire } from 'module';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import https from 'https';
 
 const _require = createRequire(import.meta.url);
@@ -10,7 +11,7 @@ export const Ffmpeg: typeof import('fluent-ffmpeg') = _require('fluent-ffmpeg');
 Ffmpeg.setFfmpegPath(ffmpegPath);
 
 // ─── yt-dlp bootstrap ─────────────────────────────────────────────────────────
-const BIN_DIR  = path.join(process.cwd(), '.ytdlp');
+const BIN_DIR  = path.join(os.tmpdir(), '.ytdlp');
 const BIN_PATH = path.join(BIN_DIR, process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
 
 let _instance: any = null;
@@ -31,6 +32,8 @@ function downloadFile(url: string, dest: string): Promise<void> {
 }
 
 async function bootstrap() {
+  console.log('[yt-dlp] BIN_PATH:', BIN_PATH);
+  console.log('[yt-dlp] tmpdir:', os.tmpdir());
   if (!fs.existsSync(BIN_PATH)) {
     fs.mkdirSync(BIN_DIR, { recursive: true });
     console.log('[yt-dlp] Downloading binary…');

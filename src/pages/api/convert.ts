@@ -80,6 +80,7 @@ export const POST: APIRoute = async ({ request, locals: _locals }) => {
            : msg.includes('not found')   ? 'not_found'
            : msg.includes('unavailable') ? 'unavailable'
            : 'conversion_failed',
+      debug: e?.message ?? String(e),
     }, 500);
   }
 };

@@ -9,7 +9,7 @@ const isPremium  = user?.plan === 'premium';
   <!-- Converter card -->
   <div
     id="converter-card"
-    class="bg-canvas rounded-xl border border-hairline shadow-[0px_2px_2px_#0000000a,0px_8px_16px_-4px_#0000000a,inset_0_0_0_1px_#00000014]"
+    class="bg-[#111111] rounded-xl border border-white/10 shadow-[0px_0px_0px_1px_rgba(255,255,255,0.06),0px_8px_40px_-4px_rgba(255,0,0,0.15)]"
   >
     <!-- Input row -->
     <div id="input-state" class="p-4">
@@ -27,21 +27,21 @@ const isPremium  = user?.plan === 'premium';
             autocomplete="off"
             autocorrect="off"
             spellcheck="false"
-            class="w-full h-11 pl-9 pr-4 text-sm text-ink bg-canvas border border-hairline rounded-lg placeholder:text-muted focus:outline-none focus:border-hairline-strong focus:ring-2 focus:ring-ink/5 transition-all"
+            class="w-full h-11 pl-9 pr-4 text-sm text-white bg-white/5 border border-white/10 rounded-lg placeholder:text-white/30 focus:outline-none focus:border-[#ff0000]/60 focus:ring-2 focus:ring-[#ff0000]/10 transition-all"
             aria-label="YouTube URL input"
           />
           <!-- Recent searches dropdown -->
-          <div id="history-dropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-canvas border border-hairline rounded-lg shadow-[0px_4px_16px_-4px_#0000001a] overflow-hidden z-50">
-            <div class="flex items-center justify-between px-3 py-2 border-b border-hairline">
-              <span class="text-[11px] font-medium text-muted uppercase tracking-widest font-mono">Recent</span>
-              <button id="history-clear-btn" class="text-[11px] text-muted hover:text-ink transition-colors">Clear</button>
+          <div id="history-dropdown" class="hidden absolute left-0 right-0 top-full mt-1 bg-[#1a1a1a] border border-white/10 rounded-lg shadow-[0px_8px_24px_rgba(0,0,0,0.5)] overflow-hidden z-50">
+            <div class="flex items-center justify-between px-3 py-2 border-b border-white/8">
+              <span class="text-[11px] font-medium text-white/30 uppercase tracking-widest font-mono">Recent</span>
+              <button id="history-clear-btn" class="text-[11px] text-white/30 hover:text-white/70 transition-colors">Clear</button>
             </div>
             <ul id="history-list" class="py-1"></ul>
           </div>
         </div>
         <button
           id="convert-btn"
-          class="inline-flex items-center gap-2 h-11 px-5 text-sm font-medium text-canvas bg-ink rounded-lg hover:opacity-85 active:opacity-75 transition-opacity whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+          class="inline-flex items-center gap-2 h-11 px-5 text-sm font-medium text-white bg-[#ff0000] rounded-lg hover:bg-[#cc0000] active:bg-[#aa0000] transition-colors whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_4px_14px_rgba(255,0,0,0.35)]"
         >
           <svg id="btn-icon-arrow" width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M7 1v8M3.5 6l3.5 3.5L10.5 6M2 12h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -52,7 +52,7 @@ const isPremium  = user?.plan === 'premium';
           <span id="btn-label">Convert</span>
         </button>
       </div>
-      <p class="mt-2 text-xs text-muted pl-1">
+      <p class="mt-2 text-xs text-white/30 pl-1">
         Supports youtube.com/watch, youtu.be, /shorts, /playlist — any public video
       </p>
     </div>
@@ -228,23 +228,23 @@ const isPremium  = user?.plan === 'premium';
   </div>
 
   <!-- Paste shortcut hint -->
-  <p id="paste-hint" class="text-center text-xs text-muted mt-3">
-    Press <kbd class="px-1.5 py-0.5 text-xs bg-canvas-soft-2 border border-hairline rounded font-mono">Ctrl+V</kbd> to paste a copied YouTube link
+  <p id="paste-hint" class="text-center text-xs text-white/30 mt-3">
+    Press <kbd class="px-1.5 py-0.5 text-xs bg-white/8 border border-white/10 rounded font-mono text-white/50">Ctrl+V</kbd> to paste a copied YouTube link
   </p>
 
   <!-- Auth / usage bar (below card) -->
   {!isLoggedIn ? (
-    <div class="mt-3 flex items-center justify-center gap-2 text-xs text-muted">
+    <div class="mt-3 flex items-center justify-center gap-2 text-xs text-white/30">
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.25"/><path d="M6 5v3M6 3.5v.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg>
-      <span>No signup needed · <a href="/signup" class="text-ink font-medium hover:underline">Sign in</a> for playlist batch · <a href="/account" class="text-ink font-medium hover:underline">Premium</a>: up to 50 tracks</span>
+      <span>No signup needed · <a href="/signup" class="text-[#ff0000] font-medium hover:opacity-80 transition-opacity">Sign in</a> for playlist batch · <a href="/account" class="text-[#ff0000] font-medium hover:opacity-80 transition-opacity">Premium</a>: up to 50 tracks</span>
     </div>
   ) : !isPremium ? (
-    <p class="mt-3 text-center text-xs text-muted">
-      <a href="/account" class="text-ink font-medium hover:underline">Upgrade to Premium</a> for full playlist batch (50 tracks)
+    <p class="mt-3 text-center text-xs text-white/30">
+      <a href="/account" class="text-[#ff0000] font-medium hover:opacity-80 transition-opacity">Upgrade to Premium</a> for full playlist batch (50 tracks)
     </p>
   ) : (
-    <p class="mt-3 text-center text-xs text-muted">
-      <span class="inline-flex items-center gap-1"><span class="text-amber-600 font-medium">Premium</span> · Unlimited downloads</span>
+    <p class="mt-3 text-center text-xs text-white/30">
+      <span class="inline-flex items-center gap-1"><span class="text-[#ff0000] font-medium">Premium</span> · Unlimited downloads</span>
     </p>
   )}
 </section>
