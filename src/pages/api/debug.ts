@@ -1,6 +1,29 @@
 import type { APIRoute } from 'astro';
 import postgres from 'postgres';
 
+// POST /api/debug/make-admin?secret=...&email=...
+export const POST: APIRoute = async ({ url }) => {
+  const secret = url.searchParams.get('secret');
+  const email = url.searchParams.get('email');
+  const envSecret = import.meta.env.SETUP_SECRET ?? process.env.SETUP_SECRET;
+  if (!envSecret || secret !== envSecret) {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+  }
+  if (!email) {
+    return new Response(JSON.stringify({ error: 'email param required' }), { status: 400 });
+  }
+  const dbUrl = import.meta.env.DATABASE_URL ?? process.env.DATABASE_URL ?? '';
+  try {
+    const client = postgres(dbUrl, { max: 1, ssl: 'prefer' });
+    const result = await client`UPDATE "user" SET "is_admin" = true WHERE "email" = ${email} RETURNING id, email`;
+    await client.end();
+    if (result.length === 0) return new Response(JSON.stringify({ error: 'User not found' }), { status: 404 });
+    return new Response(JSON.stringify({ ok: true, updated: result[0] }), { status: 200 });
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+  }
+};
+
 export const prerender = false;
 
 // GET /api/debug?secret=setup-yt2mp3-2024

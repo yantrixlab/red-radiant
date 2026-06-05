@@ -80,6 +80,8 @@ document.getElementById('signup-form')?.addEventListener('submit', async (e) => 
     btn.disabled    = false;
     btn.textContent = 'Create account';
     showError(error.message ?? `Sign up failed (${error.status ?? 'unknown error'})`);
+  } else {
+    window.location.href = '/account';
   }
 });
 
