@@ -11,8 +11,13 @@ export const Ffmpeg: typeof import('fluent-ffmpeg') = _require('fluent-ffmpeg');
 Ffmpeg.setFfmpegPath(ffmpegPath);
 
 // ─── yt-dlp bootstrap ─────────────────────────────────────────────────────────
-const BIN_DIR  = path.join(os.tmpdir(), '.ytdlp');
-const BIN_PATH = path.join(BIN_DIR, process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+const BIN_DIR   = path.join(os.tmpdir(), '.ytdlp');
+const STAMP     = path.join(BIN_DIR, '.standalone'); // marker = correct binary installed
+const BIN_NAME  = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+const BIN_PATH  = path.join(BIN_DIR, BIN_NAME);
+const DL_NAME   = process.platform === 'win32' ? 'yt-dlp.exe'
+                : process.platform === 'darwin' ? 'yt-dlp_macos'
+                : 'yt-dlp_linux'; // standalone PyInstaller — no Python needed
 
 let _instance: any = null;
 let _init: Promise<void> | null = null;
@@ -32,25 +37,22 @@ function downloadFile(url: string, dest: string): Promise<void> {
 }
 
 async function bootstrap() {
-  console.log('[yt-dlp] BIN_PATH:', BIN_PATH);
-  console.log('[yt-dlp] tmpdir:', os.tmpdir());
-  // Remove old wrongly-named binary if it exists
-  const oldBin = path.join(BIN_DIR, 'yt-dlp');
-  if (process.platform !== 'win32' && process.platform !== 'darwin' && fs.existsSync(oldBin) && BIN_PATH !== oldBin) {
-    fs.unlinkSync(oldBin);
-    console.log('[yt-dlp] Removed old binary, will re-download correct standalone…');
+  fs.mkdirSync(BIN_DIR, { recursive: true });
+
+  // If stamp file is missing the old Python zipapp is cached — delete and re-download
+  if (fs.existsSync(BIN_PATH) && !fs.existsSync(STAMP)) {
+    fs.unlinkSync(BIN_PATH);
+    console.log('[yt-dlp] Removed old Python zipapp, downloading standalone binary…');
   }
+
   if (!fs.existsSync(BIN_PATH)) {
-    fs.mkdirSync(BIN_DIR, { recursive: true });
-    console.log('[yt-dlp] Downloading binary…');
-    const name = process.platform === 'win32' ? 'yt-dlp.exe'
-               : process.platform === 'darwin' ? 'yt-dlp_macos'
-               : 'yt-dlp_linux';  // standalone PyInstaller binary — no Python required
+    console.log('[yt-dlp] Downloading standalone binary:', DL_NAME);
     await downloadFile(
-      `https://github.com/yt-dlp/yt-dlp/releases/latest/download/${name}`,
+      `https://github.com/yt-dlp/yt-dlp/releases/latest/download/${DL_NAME}`,
       BIN_PATH,
     );
     if (process.platform !== 'win32') fs.chmodSync(BIN_PATH, 0o755);
+    fs.writeFileSync(STAMP, 'standalone'); // mark as correct binary
     console.log('[yt-dlp] Ready:', BIN_PATH);
   }
   const YTDlpWrap = _require('yt-dlp-wrap').default;
