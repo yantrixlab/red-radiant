@@ -3,8 +3,21 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { getYtDlp, getCookieArgs, ffmpegConvert, ffmpegPath, nodeToWebStream, cleanup, extractVideoId, jsonRes } from '../../lib/ytdlp.server';
+import { Innertube } from 'youtubei.js';
+import { ffmpegConvert, ffmpegPath, nodeToWebStream, cleanup, extractVideoId, jsonRes } from '../../lib/ytdlp.server';
+
 export const prerender = false;
+
+// Reuse Innertube instance across requests
+let _yt: Innertube | null = null;
+async function getInnertube() {
+  if (!_yt) {
+    _yt = await Innertube.create({
+      retrieve_player: false,
+    });
+  }
+  return _yt;
+}
 
 export const POST: APIRoute = async ({ request, locals: _locals }) => {
 
@@ -20,32 +33,34 @@ export const POST: APIRoute = async ({ request, locals: _locals }) => {
   const filename   = `${cleanTitle}.${format}`;
   const tmpId      = randomUUID();
   const tmpDir     = os.tmpdir();
-  const inputTpl   = path.join(tmpDir, `ytdl_${tmpId}.%(ext)s`);
+  const rawFile    = path.join(tmpDir, `ytdl_raw_${tmpId}`);
   const outputFile = path.join(tmpDir, `ytdl_out_${tmpId}.${format}`);
 
   try {
-    const ytDlp = await getYtDlp();
+    console.log(`[innertube] Downloading ${videoId}…`);
+    const yt = await getInnertube();
 
-    console.log(`[yt-dlp] Downloading ${videoId}…`);
-    await ytDlp.execPromise([
-      `https://www.youtube.com/watch?v=${videoId}`,
-      '-f', 'bestaudio',
-      '--no-playlist',
-      '--ffmpeg-location', path.dirname(ffmpegPath),
-      '-o', inputTpl,
-      '--no-warnings',
-      ...getCookieArgs(),
-    ]);
+    // Get the best audio stream
+    const stream = await yt.download(videoId, {
+      type: 'audio',
+      quality: 'best',
+      client: 'IOS',
+    });
 
-    const inputFile = fs.readdirSync(tmpDir)
-      .map(f => path.join(tmpDir, f))
-      .find(f => f.includes(`ytdl_${tmpId}.`) && !f.endsWith('.part'));
-
-    if (!inputFile) throw new Error('Download produced no output file');
+    // Write stream to raw file
+    const writeStream = fs.createWriteStream(rawFile);
+    for await (const chunk of stream) {
+      writeStream.write(chunk);
+    }
+    await new Promise<void>((resolve, reject) => {
+      writeStream.end();
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    });
 
     console.log(`[ffmpeg] Converting to ${format}…`);
-    await ffmpegConvert(inputFile, outputFile, format, quality);
-    cleanup(inputFile);
+    await ffmpegConvert(rawFile, outputFile, format, quality);
+    cleanup(rawFile);
 
     const fileSize   = fs.statSync(outputFile).size;
     const fileStream = fs.createReadStream(outputFile);
@@ -67,21 +82,16 @@ export const POST: APIRoute = async ({ request, locals: _locals }) => {
     });
 
   } catch (e: any) {
-    cleanup(outputFile);
-    try {
-      fs.readdirSync(tmpDir)
-        .filter(f => f.includes(tmpId))
-        .forEach(f => cleanup(path.join(tmpDir, f)));
-    } catch {}
+    cleanup(rawFile, outputFile);
     console.error('[convert error]', e?.message ?? e);
     const msg: string = (e?.message ?? '').toLowerCase();
     return jsonRes({
-      error: msg.includes('private')        ? 'private'
-           : msg.includes('age-restrict')   ? 'age_restricted'
-           : msg.includes('age restricted') ? 'age_restricted'
+      error: msg.includes('private')          ? 'private'
+           : msg.includes('age-restrict')     ? 'age_restricted'
+           : msg.includes('age restricted')   ? 'age_restricted'
            : msg.includes('confirm your age') ? 'age_restricted'
-           : msg.includes('not found')      ? 'not_found'
-           : msg.includes('unavailable')    ? 'unavailable'
+           : msg.includes('not found')        ? 'not_found'
+           : msg.includes('unavailable')      ? 'unavailable'
            : 'conversion_failed',
       debug: e?.message ?? String(e),
     }, 500);
