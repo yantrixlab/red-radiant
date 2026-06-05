@@ -12,6 +12,7 @@ export default defineConfig({
     ssr: {
       external: [
         "yt-dlp-wrap",
+        "@distube/ytdl-core",
         "fluent-ffmpeg",
         "ffmpeg-static",
         "archiver",
