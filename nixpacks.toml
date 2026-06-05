@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs_22", "python3"]
+aptPkgs = ["python3", "ca-certificates"]
 
 [phases.install]
 cmds = ["npm install"]
