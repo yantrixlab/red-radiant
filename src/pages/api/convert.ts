@@ -12,11 +12,27 @@ export const prerender = false;
 let _yt: Innertube | null = null;
 async function getInnertube() {
   if (!_yt) {
-    _yt = await Innertube.create({
-      retrieve_player: false,
-    });
+    // Decode cookies from env if available
+    const cookieB64 = process.env.YT_COOKIES_B64 ?? '';
+    const cookie = cookieB64
+      ? parseCookiesFromNetscape(Buffer.from(cookieB64, 'base64').toString('utf-8'))
+      : undefined;
+
+    _yt = await Innertube.create({ cookie });
+    console.log('[innertube] Initialized', cookie ? 'with cookies' : 'without cookies');
   }
   return _yt;
+}
+
+// Convert Netscape cookies.txt format → Cookie header string
+function parseCookiesFromNetscape(txt: string): string {
+  return txt
+    .split('\n')
+    .filter(l => l && !l.startsWith('#'))
+    .map(l => l.split('\t'))
+    .filter(p => p.length >= 7)
+    .map(p => `${p[5]}=${p[6]}`)
+    .join('; ');
 }
 
 export const POST: APIRoute = async ({ request, locals: _locals }) => {
@@ -44,7 +60,7 @@ export const POST: APIRoute = async ({ request, locals: _locals }) => {
     const stream = await yt.download(videoId, {
       type: 'audio',
       quality: 'best',
-      client: 'IOS',
+      client: 'ANDROID',
     });
 
     // Write stream to raw file
