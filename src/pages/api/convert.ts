@@ -5,32 +5,23 @@ import path from 'path';
 import https from 'https';
 import http from 'http';
 import { randomUUID } from 'crypto';
-import { ffmpegConvert, nodeToWebStream, cleanup, extractVideoId, jsonRes } from '../../lib/ytdlp.server';
+import { getYtDlp, getCookieArgs, ffmpegConvert, ffmpegPath, nodeToWebStream, cleanup, extractVideoId, jsonRes } from '../../lib/ytdlp.server';
 
 export const prerender = false;
 
-// Multiple Piped instances as fallback
-const PIPED_INSTANCES = [
-  'https://pipedapi.kavin.rocks',
-  'https://piped-api.garudalinux.org',
-  'https://api.piped.yt',
-  'https://pipedapi.in.projectsegfau.lt',
-];
-
+// ── Fetch helpers ──────────────────────────────────────────────────────────────
 async function fetchJson(url: string): Promise<any> {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https') ? https : http;
-    lib.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
-      if (res.statusCode === 301 || res.statusCode === 302) {
+    const req = lib.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 8000 }, (res) => {
+      if (res.statusCode === 301 || res.statusCode === 302)
         return fetchJson(res.headers.location!).then(resolve).catch(reject);
-      }
       let data = '';
       res.on('data', c => data += c);
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch { reject(new Error('Invalid JSON from Piped')); }
-      });
-    }).on('error', reject);
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch { reject(new Error('Bad JSON')); } });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
   });
 }
 
@@ -38,43 +29,66 @@ async function downloadUrl(url: string, dest: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const file = fs.createWriteStream(dest);
     const lib = url.startsWith('https') ? https : http;
-    const get = (u: string) => lib.get(u, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
-      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location)
-        return get(res.headers.location);
-      if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
-      res.pipe(file);
-      file.on('finish', () => file.close(() => resolve()));
-    }).on('error', reject);
+    const get = (u: string) => {
+      const req = lib.get(u, { headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 30000 }, (res) => {
+        if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) return get(res.headers.location);
+        if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
+        res.pipe(file);
+        file.on('finish', () => file.close(() => resolve()));
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('download timeout')); });
+    };
     get(url);
   });
 }
 
-async function getAudioUrl(videoId: string): Promise<string> {
-  for (const instance of PIPED_INSTANCES) {
+// ── Piped instances ────────────────────────────────────────────────────────────
+const PIPED = [
+  'https://pipedapi.kavin.rocks',
+  'https://piped-api.garudalinux.org',
+  'https://api.piped.yt',
+  'https://pipedapi.in.projectsegfau.lt',
+  'https://pipedapi.adminforge.de',
+];
+
+// ── Invidious instances ────────────────────────────────────────────────────────
+const INVIDIOUS = [
+  'https://invidious.privacyredirect.com',
+  'https://yt.artemislena.eu',
+  'https://invidious.nerdvpn.de',
+  'https://invidious.fdn.fr',
+  'https://inv.tux.pizza',
+];
+
+async function getAudioUrlFromPiped(videoId: string): Promise<string | null> {
+  for (const host of PIPED) {
     try {
-      console.log(`[piped] Trying ${instance}…`);
-      const data = await fetchJson(`${instance}/streams/${videoId}`);
-
-      // Find best audio stream
-      const audioStreams: any[] = data.audioStreams ?? [];
-      if (!audioStreams.length) continue;
-
-      // Sort by bitrate descending
-      audioStreams.sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
-      const best = audioStreams[0];
-      if (best?.url) {
-        console.log(`[piped] Got audio stream from ${instance}, bitrate: ${best.bitrate}`);
-        return best.url;
-      }
-    } catch (e: any) {
-      console.warn(`[piped] ${instance} failed: ${e.message}`);
-    }
+      const data = await fetchJson(`${host}/streams/${videoId}`);
+      const streams: any[] = data.audioStreams ?? [];
+      if (!streams.length) continue;
+      streams.sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
+      if (streams[0]?.url) { console.log(`[piped] OK: ${host}`); return streams[0].url; }
+    } catch (e: any) { console.warn(`[piped] ${host}: ${e.message}`); }
   }
-  throw new Error('All Piped instances failed');
+  return null;
+}
+
+async function getAudioUrlFromInvidious(videoId: string): Promise<string | null> {
+  for (const host of INVIDIOUS) {
+    try {
+      const data = await fetchJson(`${host}/api/v1/videos/${videoId}?fields=adaptiveFormats`);
+      const formats: any[] = data.adaptiveFormats ?? [];
+      const audio = formats
+        .filter((f: any) => f.type?.startsWith('audio/'))
+        .sort((a: any, b: any) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
+      if (audio[0]?.url) { console.log(`[invidious] OK: ${host}`); return audio[0].url; }
+    } catch (e: any) { console.warn(`[invidious] ${host}: ${e.message}`); }
+  }
+  return null;
 }
 
 export const POST: APIRoute = async ({ request }) => {
-
   let body: { url?: string; format?: string; quality?: string; title?: string };
   try { body = await request.json(); }
   catch { return jsonRes({ error: 'Invalid request body' }, 400); }
@@ -91,9 +105,54 @@ export const POST: APIRoute = async ({ request }) => {
   const outputFile = path.join(tmpDir, `ytdl_out_${tmpId}.${format}`);
 
   try {
-    const audioUrl = await getAudioUrl(videoId);
+    // ── Step 1: try Piped ────────────────────────────────────────────────────
+    let audioUrl = await getAudioUrlFromPiped(videoId);
 
-    console.log(`[download] Fetching audio stream…`);
+    // ── Step 2: try Invidious ─────────────────────────────────────────────
+    if (!audioUrl) audioUrl = await getAudioUrlFromInvidious(videoId);
+
+    // ── Step 3: fall back to yt-dlp with proxy ────────────────────────────
+    if (!audioUrl) {
+      console.log('[ytdlp] Falling back to yt-dlp…');
+      const ytDlp = await getYtDlp();
+      const inputTpl = path.join(tmpDir, `ytdl_${tmpId}.%(ext)s`);
+
+      const proxy = process.env.YT_PROXY ?? '';
+      await ytDlp.execPromise([
+        `https://www.youtube.com/watch?v=${videoId}`,
+        '-f', 'bestaudio',
+        '--no-playlist',
+        '--ffmpeg-location', path.dirname(ffmpegPath),
+        '-o', inputTpl,
+        '--no-warnings',
+        ...getCookieArgs(),
+        ...(proxy ? ['--proxy', proxy] : []),
+      ]);
+
+      const inputFile = fs.readdirSync(tmpDir)
+        .map(f => path.join(tmpDir, f))
+        .find(f => f.includes(`ytdl_${tmpId}.`) && !f.endsWith('.part'));
+      if (!inputFile) throw new Error('yt-dlp produced no output file');
+
+      await ffmpegConvert(inputFile, outputFile, format, quality);
+      cleanup(inputFile);
+
+      const fileSize   = fs.statSync(outputFile).size;
+      const fileStream = fs.createReadStream(outputFile);
+      fileStream.on('close', () => setTimeout(() => cleanup(outputFile), 10_000));
+      const contentType = format === 'wav' ? 'audio/wav' : format === 'm4a' ? 'audio/mp4' : 'audio/mpeg';
+      return new Response(nodeToWebStream(fileStream), {
+        status: 200,
+        headers: {
+          'Content-Type': contentType, 'Content-Length': String(fileSize),
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+          'X-Filename': filename, 'Cache-Control': 'no-store',
+        },
+      });
+    }
+
+    // ── Download audio URL from Piped/Invidious ───────────────────────────
+    console.log('[download] Fetching audio stream…');
     await downloadUrl(audioUrl, rawFile);
 
     console.log(`[ffmpeg] Converting to ${format}…`);
@@ -103,19 +162,14 @@ export const POST: APIRoute = async ({ request }) => {
     const fileSize   = fs.statSync(outputFile).size;
     const fileStream = fs.createReadStream(outputFile);
     fileStream.on('close', () => setTimeout(() => cleanup(outputFile), 10_000));
-
-    const contentType = format === 'wav'  ? 'audio/wav'
-                      : format === 'm4a'  ? 'audio/mp4'
-                      : 'audio/mpeg';
+    const contentType = format === 'wav' ? 'audio/wav' : format === 'm4a' ? 'audio/mp4' : 'audio/mpeg';
 
     return new Response(nodeToWebStream(fileStream), {
       status: 200,
       headers: {
-        'Content-Type': contentType,
-        'Content-Length': String(fileSize),
+        'Content-Type': contentType, 'Content-Length': String(fileSize),
         'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
-        'X-Filename': filename,
-        'Cache-Control': 'no-store',
+        'X-Filename': filename, 'Cache-Control': 'no-store',
       },
     });
 
