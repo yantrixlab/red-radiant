@@ -125,6 +125,7 @@ export const POST: APIRoute = async ({ request }) => {
         '--ffmpeg-location', path.dirname(ffmpegPath),
         '-o', inputTpl,
         '--no-warnings',
+        '--extractor-args', 'youtube:player_client=tv_embedded,web_creator',
         ...getCookieArgs(),
         ...(proxy ? ['--proxy', proxy] : []),
       ]);
