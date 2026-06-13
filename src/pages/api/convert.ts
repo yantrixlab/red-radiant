@@ -128,9 +128,9 @@ export const POST: APIRoute = async ({ request }) => {
         '--ffmpeg-location', path.dirname(ffmpegPath),
         '-o', inputTpl,
         '--no-warnings',
-        '--extractor-args', 'youtube:player_client=ios,tv_embedded,web_creator',
+        '--extractor-args', 'youtube:player_client=ios,android,tv_embedded',
+        '--add-header', 'User-Agent:Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
         ...getCookieArgs(),
-        ...(proxy ? ['--proxy', proxy] : []),
       ]);
 
       const inputFile = fs.readdirSync(tmpDir)
