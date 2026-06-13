@@ -90,8 +90,8 @@ async function getAudioUrlFromInvidious(videoId: string): Promise<string | null>
 
 const COBALT_INSTANCES = [
   'https://cobalt.api.timelessnesses.me',
-  'https://cobalt.ixm.one',
-  'https://capi.vi.gd',
+  'https://cobalt.imput.net',
+  'https://cobalt.catto.moe',
 ];
 
 async function getAudioUrlFromCobalt(videoId: string): Promise<string | null> {
@@ -103,6 +103,7 @@ async function getAudioUrlFromCobalt(videoId: string): Promise<string | null> {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
           timeout: 15000,
+          rejectUnauthorized: false,
         }, (r) => {
           let data = '';
           r.on('data', c => data += c);
@@ -123,39 +124,75 @@ async function getAudioUrlFromCobalt(videoId: string): Promise<string | null> {
   return null;
 }
 
+const INNERTUBE_CLIENTS = [
+  {
+    name: 'ANDROID',
+    clientName: '3',
+    clientVersion: '19.09.37',
+    body: (videoId: string) => ({
+      videoId,
+      context: { client: { clientName: 'ANDROID', clientVersion: '19.09.37', androidSdkVersion: 30, hl: 'en', gl: 'US', utcOffsetMinutes: 0 } },
+    }),
+    userAgent: 'com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip',
+  },
+  {
+    name: 'IOS',
+    clientName: '5',
+    clientVersion: '19.09.3',
+    body: (videoId: string) => ({
+      videoId,
+      context: { client: { clientName: 'IOS', clientVersion: '19.09.3', deviceModel: 'iPhone14,3', hl: 'en', gl: 'US', utcOffsetMinutes: 0 } },
+    }),
+    userAgent: 'com.google.ios.youtube/19.09.3 (iPhone14,3; U; CPU iOS 17_1 like Mac OS X)',
+  },
+  {
+    name: 'WEB_EMBEDDED',
+    clientName: '56',
+    clientVersion: '1.20240726.00.00',
+    body: (videoId: string) => ({
+      videoId,
+      context: {
+        client: { clientName: 'WEB_EMBEDDED_PLAYER', clientVersion: '1.20240726.00.00', hl: 'en', gl: 'US', utcOffsetMinutes: 0 },
+        thirdParty: { embedUrl: 'https://www.youtube.com/' },
+      },
+    }),
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  },
+];
+
 async function getAudioUrlFromInnertube(videoId: string): Promise<string | null> {
-  const body = JSON.stringify({
-    videoId,
-    context: {
-      client: { clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER', clientVersion: '2.0', hl: 'en', gl: 'US', utcOffsetMinutes: 0 },
-      thirdParty: { embedUrl: 'https://www.youtube.com/' },
-    },
-  });
-  return new Promise((resolve) => {
-    const req = https.request('https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8&prettyPrint=false', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-YouTube-Client-Name': '85', 'X-YouTube-Client-Version': '2.0', 'Origin': 'https://www.youtube.com', 'User-Agent': 'Mozilla/5.0' },
-      timeout: 15000,
-    }, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          const status = json.playabilityStatus?.status;
-          if (status !== 'OK') { console.warn('[innertube] not OK:', status, json.playabilityStatus?.reason); return resolve(null); }
-          const formats = [...(json.streamingData?.adaptiveFormats ?? []), ...(json.streamingData?.formats ?? [])];
-          const audio = formats.filter((f: any) => f.mimeType?.startsWith('audio/')).sort((a: any, b: any) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
-          if (audio[0]?.url) { console.log('[innertube] OK:', audio[0].mimeType); return resolve(audio[0].url); }
-          resolve(null);
-        } catch { resolve(null); }
+  for (const client of INNERTUBE_CLIENTS) {
+    try {
+      const bodyStr = JSON.stringify(client.body(videoId));
+      const result = await new Promise<string | null>((resolve) => {
+        const req = https.request('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-YouTube-Client-Name': client.clientName, 'X-YouTube-Client-Version': client.clientVersion, 'User-Agent': client.userAgent },
+          timeout: 15000,
+        }, (res) => {
+          let data = '';
+          res.on('data', c => data += c);
+          res.on('end', () => {
+            try {
+              const json = JSON.parse(data);
+              const status = json.playabilityStatus?.status;
+              if (status !== 'OK') { console.warn(`[innertube/${client.name}] status:`, status, json.playabilityStatus?.reason?.slice(0, 60)); return resolve(null); }
+              const formats = [...(json.streamingData?.adaptiveFormats ?? []), ...(json.streamingData?.formats ?? [])];
+              const audio = formats.filter((f: any) => f.mimeType?.startsWith('audio/')).sort((a: any, b: any) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
+              if (audio[0]?.url) { console.log(`[innertube/${client.name}] OK`); return resolve(audio[0].url); }
+              resolve(null);
+            } catch { resolve(null); }
+          });
+        });
+        req.on('error', (e) => { console.warn(`[innertube/${client.name}]`, e.message); resolve(null); });
+        req.on('timeout', () => { req.destroy(); resolve(null); });
+        req.write(bodyStr);
+        req.end();
       });
-    });
-    req.on('error', () => resolve(null));
-    req.on('timeout', () => { req.destroy(); resolve(null); });
-    req.write(body);
-    req.end();
-  });
+      if (result) return result;
+    } catch (e: any) { console.warn(`[innertube/${client.name}]`, e.message); }
+  }
+  return null;
 }
 
 export const POST: APIRoute = async ({ request }) => {
