@@ -88,39 +88,33 @@ async function getAudioUrlFromInvidious(videoId: string): Promise<string | null>
   return null;
 }
 
-const COBALT_INSTANCES = [
-  'https://cobalt.api.timelessnesses.me',
-  'https://cobalt.imput.net',
-  'https://cobalt.catto.moe',
-];
-
 async function getAudioUrlFromCobalt(videoId: string): Promise<string | null> {
+  const apiKey = process.env.COBALT_API_KEY ?? '';
+  if (!apiKey) { console.warn('[cobalt] No COBALT_API_KEY set, skipping'); return null; }
+
   const payload = JSON.stringify({ url: `https://www.youtube.com/watch?v=${videoId}`, downloadMode: 'audio', audioFormat: 'mp3', audioBitrate: '320' });
-  for (const host of COBALT_INSTANCES) {
-    try {
-      const res = await new Promise<any>((resolve, reject) => {
-        const req = https.request(host, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-          timeout: 15000,
-          rejectUnauthorized: false,
-        }, (r) => {
-          let data = '';
-          r.on('data', c => data += c);
-          r.on('end', () => { try { resolve(JSON.parse(data)); } catch { reject(new Error('Bad JSON')); } });
-        });
-        req.on('error', reject);
-        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
-        req.write(payload);
-        req.end();
+  try {
+    const res = await new Promise<any>((resolve, reject) => {
+      const req = https.request('https://api.cobalt.tools', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Authorization': `Api-Key ${apiKey}`, 'User-Agent': 'Mozilla/5.0' },
+        timeout: 20000,
+      }, (r) => {
+        let data = '';
+        r.on('data', c => data += c);
+        r.on('end', () => { try { resolve(JSON.parse(data)); } catch { reject(new Error('Bad JSON')); } });
       });
-      if (res?.url && (res.status === 'stream' || res.status === 'redirect' || res.status === 'tunnel')) {
-        console.log('[cobalt] OK:', host, res.status);
-        return res.url;
-      }
-      console.warn(`[cobalt] ${host}: status=${res?.status} code=${res?.error?.code}`);
-    } catch (e: any) { console.warn(`[cobalt] ${host}: ${e.message}`); }
-  }
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+      req.write(payload);
+      req.end();
+    });
+    if (res?.url && (res.status === 'stream' || res.status === 'redirect' || res.status === 'tunnel')) {
+      console.log('[cobalt] OK:', res.status);
+      return res.url;
+    }
+    console.warn('[cobalt] unexpected response:', res?.status, res?.error?.code ?? JSON.stringify(res).slice(0, 100));
+  } catch (e: any) { console.warn('[cobalt]', e.message); }
   return null;
 }
 
