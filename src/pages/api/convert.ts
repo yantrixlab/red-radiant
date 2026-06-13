@@ -130,6 +130,7 @@ export const POST: APIRoute = async ({ request }) => {
         '--no-warnings',
         '--extractor-args', 'youtube:player_client=tv_embedded,ios,web',
         ...getCookieArgs(),
+        ...(proxy ? ['--proxy', proxy] : []),
       ]);
 
       const inputFile = fs.readdirSync(tmpDir)
