@@ -121,17 +121,44 @@ export const POST: APIRoute = async ({ request }) => {
       const inputTpl = path.join(tmpDir, `ytdl_${tmpId}.%(ext)s`);
 
       const proxy = process.env.YT_PROXY ?? '';
-      await ytDlp.execPromise([
-        `https://www.youtube.com/watch?v=${videoId}`,
-        '-f', 'bestaudio/bestaudio*[ext=m4a]/bestaudio*[ext=webm]/best',
-        '--no-playlist',
-        '--ffmpeg-location', path.dirname(ffmpegPath),
-        '-o', inputTpl,
-        '--no-warnings',
-        '--extractor-args', 'youtube:player_client=tv_embedded,ios,web',
-        ...getCookieArgs(),
-        ...(proxy ? ['--proxy', proxy] : []),
-      ]);
+
+      // Attempt 1: tv_embedded without cookies (avoids account/IP location mismatch)
+      let ytdlpError: Error | null = null;
+      try {
+        await ytDlp.execPromise([
+          `https://www.youtube.com/watch?v=${videoId}`,
+          '-f', 'bestaudio/bestaudio*[ext=m4a]/bestaudio*[ext=webm]/best',
+          '--no-playlist',
+          '--ffmpeg-location', path.dirname(ffmpegPath),
+          '-o', inputTpl,
+          '--no-warnings',
+          '--extractor-args', 'youtube:player_client=tv_embedded,mweb',
+          ...(proxy ? ['--proxy', proxy] : []),
+        ]);
+        console.log('[ytdlp] Attempt 1 (tv_embedded, no cookies) succeeded');
+      } catch (e1: any) {
+        console.warn('[ytdlp] Attempt 1 failed:', e1?.message?.split('\n')[0]);
+        ytdlpError = e1;
+        // Attempt 2: with cookies
+        try {
+          await ytDlp.execPromise([
+            `https://www.youtube.com/watch?v=${videoId}`,
+            '-f', 'bestaudio/bestaudio*[ext=m4a]/bestaudio*[ext=webm]/best',
+            '--no-playlist',
+            '--ffmpeg-location', path.dirname(ffmpegPath),
+            '-o', inputTpl,
+            '--no-warnings',
+            '--extractor-args', 'youtube:player_client=tv_embedded,ios',
+            ...getCookieArgs(),
+            ...(proxy ? ['--proxy', proxy] : []),
+          ]);
+          console.log('[ytdlp] Attempt 2 (tv_embedded + cookies) succeeded');
+          ytdlpError = null;
+        } catch (e2: any) {
+          console.warn('[ytdlp] Attempt 2 failed:', e2?.message?.split('\n')[0]);
+          throw e2;
+        }
+      }
 
       const inputFile = fs.readdirSync(tmpDir)
         .map(f => path.join(tmpDir, f))
