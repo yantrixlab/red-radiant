@@ -106,10 +106,13 @@ export const POST: APIRoute = async ({ request }) => {
 
   try {
     // ── Step 1: try Piped ────────────────────────────────────────────────────
+    console.log(`[convert] videoId=${videoId} format=${format} quality=${quality}`);
     let audioUrl = await getAudioUrlFromPiped(videoId);
+    if (!audioUrl) console.log('[convert] All Piped instances failed');
 
     // ── Step 2: try Invidious ─────────────────────────────────────────────
     if (!audioUrl) audioUrl = await getAudioUrlFromInvidious(videoId);
+    if (!audioUrl) console.log('[convert] All Invidious instances failed');
 
     // ── Step 3: fall back to yt-dlp with proxy ────────────────────────────
     if (!audioUrl) {

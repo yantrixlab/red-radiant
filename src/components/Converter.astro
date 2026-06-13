@@ -712,6 +712,7 @@ function setBtnLoading(loading: boolean) {
           code === 'private'        ? 'This video is private.'
           : code === 'age_restricted' ? 'Age-restricted videos cannot be converted.'
           : code === 'not_found'    ? 'Video not found.'
+          : code === 'conversion_failed' && errBody?.debug ? `Conversion failed: ${errBody.debug.split('\n')[0]}`
           : errBody?.debug         ? `Error: ${errBody.debug.split('\n')[0]}`
           : `Server error ${apiRes.status}`,
         );
@@ -771,6 +772,7 @@ function setBtnLoading(loading: boolean) {
         : msg.includes('unavailable') || msg.includes('private') ? 'This video is unavailable or private.'
         : msg.includes('age') ? 'Age-restricted videos cannot be converted.'
         : msg.includes('live') ? 'Live streams cannot be converted yet.'
+        : msg.startsWith('Conversion failed:') || msg.startsWith('Error:') ? msg
         : `${msg} Please try again.`;
       showError(friendly);
       hide(progressState);
