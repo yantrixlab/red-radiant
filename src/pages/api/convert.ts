@@ -88,31 +88,74 @@ async function getAudioUrlFromInvidious(videoId: string): Promise<string | null>
   return null;
 }
 
+const COBALT_INSTANCES = [
+  'https://cobalt.api.timelessnesses.me',
+  'https://cobalt.ixm.one',
+  'https://capi.vi.gd',
+];
+
 async function getAudioUrlFromCobalt(videoId: string): Promise<string | null> {
-  try {
-    const res = await new Promise<any>((resolve, reject) => {
-      const body = JSON.stringify({ url: `https://www.youtube.com/watch?v=${videoId}`, downloadMode: 'audio', audioFormat: 'mp3', audioBitrate: '320' });
-      const req = https.request('https://api.cobalt.tools', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
-        timeout: 15000,
-      }, (r) => {
-        let data = '';
-        r.on('data', c => data += c);
-        r.on('end', () => { try { resolve(JSON.parse(data)); } catch { reject(new Error('Bad JSON')); } });
+  const payload = JSON.stringify({ url: `https://www.youtube.com/watch?v=${videoId}`, downloadMode: 'audio', audioFormat: 'mp3', audioBitrate: '320' });
+  for (const host of COBALT_INSTANCES) {
+    try {
+      const res = await new Promise<any>((resolve, reject) => {
+        const req = https.request(host, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+          timeout: 15000,
+        }, (r) => {
+          let data = '';
+          r.on('data', c => data += c);
+          r.on('end', () => { try { resolve(JSON.parse(data)); } catch { reject(new Error('Bad JSON')); } });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+        req.write(payload);
+        req.end();
       });
-      req.on('error', reject);
-      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
-      req.write(body);
-      req.end();
-    });
-    if (res?.url && (res.status === 'stream' || res.status === 'redirect' || res.status === 'tunnel')) {
-      console.log('[cobalt] OK:', res.status);
-      return res.url;
-    }
-    console.warn('[cobalt] unexpected response:', res?.status, res?.error?.code);
-  } catch (e: any) { console.warn('[cobalt]', e.message); }
+      if (res?.url && (res.status === 'stream' || res.status === 'redirect' || res.status === 'tunnel')) {
+        console.log('[cobalt] OK:', host, res.status);
+        return res.url;
+      }
+      console.warn(`[cobalt] ${host}: status=${res?.status} code=${res?.error?.code}`);
+    } catch (e: any) { console.warn(`[cobalt] ${host}: ${e.message}`); }
+  }
   return null;
+}
+
+async function getAudioUrlFromInnertube(videoId: string): Promise<string | null> {
+  const body = JSON.stringify({
+    videoId,
+    context: {
+      client: { clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER', clientVersion: '2.0', hl: 'en', gl: 'US', utcOffsetMinutes: 0 },
+      thirdParty: { embedUrl: 'https://www.youtube.com/' },
+    },
+  });
+  return new Promise((resolve) => {
+    const req = https.request('https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8&prettyPrint=false', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-YouTube-Client-Name': '85', 'X-YouTube-Client-Version': '2.0', 'Origin': 'https://www.youtube.com', 'User-Agent': 'Mozilla/5.0' },
+      timeout: 15000,
+    }, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          const status = json.playabilityStatus?.status;
+          if (status !== 'OK') { console.warn('[innertube] not OK:', status, json.playabilityStatus?.reason); return resolve(null); }
+          const formats = [...(json.streamingData?.adaptiveFormats ?? []), ...(json.streamingData?.formats ?? [])];
+          const audio = formats.filter((f: any) => f.mimeType?.startsWith('audio/')).sort((a: any, b: any) => (b.bitrate ?? 0) - (a.bitrate ?? 0));
+          if (audio[0]?.url) { console.log('[innertube] OK:', audio[0].mimeType); return resolve(audio[0].url); }
+          resolve(null);
+        } catch { resolve(null); }
+      });
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.write(body);
+    req.end();
+  });
 }
 
 export const POST: APIRoute = async ({ request }) => {
@@ -141,7 +184,10 @@ export const POST: APIRoute = async ({ request }) => {
     if (!audioUrl) audioUrl = await getAudioUrlFromInvidious(videoId);
     if (!audioUrl) console.log('[convert] All Invidious instances failed');
 
-    // ── Step 2.5: try cobalt.tools ────────────────────────────────────────
+    // ── Step 2.5: try YouTube innertube API (tv_embedded client) ─────────
+    if (!audioUrl) audioUrl = await getAudioUrlFromInnertube(videoId);
+
+    // ── Step 2.6: try cobalt community instances ───────────────────────────
     if (!audioUrl) audioUrl = await getAudioUrlFromCobalt(videoId);
 
     // ── Step 3: fall back to yt-dlp with proxy ────────────────────────────
