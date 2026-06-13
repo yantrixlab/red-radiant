@@ -123,7 +123,7 @@ export const POST: APIRoute = async ({ request }) => {
       const proxy = process.env.YT_PROXY ?? '';
       await ytDlp.execPromise([
         `https://www.youtube.com/watch?v=${videoId}`,
-        '-f', 'bestaudio',
+        '-f', 'bestaudio/bestaudio*[ext=m4a]/bestaudio*[ext=webm]/best',
         '--no-playlist',
         '--ffmpeg-location', path.dirname(ffmpegPath),
         '-o', inputTpl,
