@@ -73,8 +73,15 @@ export function getCookieArgs(): string[] {
   if (!b64) return [];
   if (!_cookiePath) {
     _cookiePath = path.join(os.tmpdir(), 'yt_cookies.txt');
-    fs.writeFileSync(_cookiePath, Buffer.from(b64, 'base64').toString('utf-8'));
-    console.log('[yt-dlp] Cookies loaded from YT_COOKIES_B64');
+    const content = Buffer.from(b64, 'base64').toString('utf-8');
+    fs.writeFileSync(_cookiePath, content);
+    const firstLine = content.split('\n')[0]?.trim() ?? '';
+    const lineCount = content.split('\n').length;
+    const hasNetscapeHeader = firstLine.startsWith('# Netscape') || firstLine.startsWith('# HTTP');
+    const hasSID = content.includes('__Secure-3PSID') || content.includes('SID');
+    console.log(`[yt-dlp] Cookies loaded: ${lineCount} lines, Netscape format=${hasNetscapeHeader}, hasSID=${hasSID}, firstLine="${firstLine}"`);
+    if (!hasNetscapeHeader) console.warn('[yt-dlp] WARNING: cookies file does not look like Netscape format!');
+    if (!hasSID) console.warn('[yt-dlp] WARNING: cookies missing SID — YouTube auth will fail!');
   }
   return ['--cookies', _cookiePath];
 }
