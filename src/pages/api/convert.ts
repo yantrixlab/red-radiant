@@ -88,6 +88,33 @@ async function getAudioUrlFromInvidious(videoId: string): Promise<string | null>
   return null;
 }
 
+async function getAudioUrlFromCobalt(videoId: string): Promise<string | null> {
+  try {
+    const res = await new Promise<any>((resolve, reject) => {
+      const body = JSON.stringify({ url: `https://www.youtube.com/watch?v=${videoId}`, downloadMode: 'audio', audioFormat: 'mp3', audioBitrate: '320' });
+      const req = https.request('https://api.cobalt.tools', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+        timeout: 15000,
+      }, (r) => {
+        let data = '';
+        r.on('data', c => data += c);
+        r.on('end', () => { try { resolve(JSON.parse(data)); } catch { reject(new Error('Bad JSON')); } });
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+      req.write(body);
+      req.end();
+    });
+    if (res?.url && (res.status === 'stream' || res.status === 'redirect' || res.status === 'tunnel')) {
+      console.log('[cobalt] OK:', res.status);
+      return res.url;
+    }
+    console.warn('[cobalt] unexpected response:', res?.status, res?.error?.code);
+  } catch (e: any) { console.warn('[cobalt]', e.message); }
+  return null;
+}
+
 export const POST: APIRoute = async ({ request }) => {
   let body: { url?: string; format?: string; quality?: string; title?: string };
   try { body = await request.json(); }
@@ -113,6 +140,9 @@ export const POST: APIRoute = async ({ request }) => {
     // ── Step 2: try Invidious ─────────────────────────────────────────────
     if (!audioUrl) audioUrl = await getAudioUrlFromInvidious(videoId);
     if (!audioUrl) console.log('[convert] All Invidious instances failed');
+
+    // ── Step 2.5: try cobalt.tools ────────────────────────────────────────
+    if (!audioUrl) audioUrl = await getAudioUrlFromCobalt(videoId);
 
     // ── Step 3: fall back to yt-dlp with proxy ────────────────────────────
     if (!audioUrl) {
